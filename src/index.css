@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply font-['Outfit'] text-gray-800 bg-gray-50 transition-colors duration-300;
+  }
+}
+
+/* Global Dark Mode Overrides for predefined utilities */
+html.dark body { @apply bg-gray-900 text-gray-100; }
+html.dark .bg-white { @apply bg-gray-800 border-gray-700 !important; }
+html.dark .bg-gray-50 { @apply bg-gray-900 !important; }
+html.dark .bg-gray-100 { @apply bg-gray-800 !important; }
+html.dark .bg-green-50 { @apply bg-green-900/40 text-green-400 !important; }
+html.dark .text-gray-900 { color: #f9fafb !important; }
+html.dark .text-gray-800 { color: #f3f4f6 !important; }
+html.dark .text-gray-700 { color: #e5e7eb !important; }
+html.dark .text-gray-600 { color: #d1d5db !important; }
+html.dark .text-gray-500 { color: #9ca3af !important; }
+html.dark .border-gray-100,
+html.dark .border-gray-200,
+html.dark .border-gray-300 { @apply border-gray-700 !important; }
+html.dark .border-b,
+html.dark .border-t,
+html.dark .border-l,
+html.dark .border-r { @apply border-gray-700; }
+html.dark input, 
+html.dark select, 
+html.dark textarea { 
+  @apply bg-gray-800 text-white border-gray-600 !important; 
+}
+html.dark input::placeholder { color: #9ca3af; }
+html.dark .bg-white\/90 { background-color: rgba(31, 41, 55, 0.9) !important; }
+html.dark .shadow-sm,
+html.dark .shadow-md,
+html.dark .shadow-xl {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.6), 0 2px 4px -1px rgba(0, 0, 0, 0.5) !important;
+}
+
+@layer utilities {
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .animation-delay-2000 {
+    animation-delay: 2s;
+  }
+  .animation-delay-4000 {
+    animation-delay: 4s;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}

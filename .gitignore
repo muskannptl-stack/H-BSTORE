@@ -1,0 +1,10 @@
+node_modules/
+dist/
+node-v20.9.0-win-x64/
+.env
+.firebase/
+.firebaserc
+firebase-debug.log
+firebase-hosting-source.tgz
+.DS_Store
+*.local
