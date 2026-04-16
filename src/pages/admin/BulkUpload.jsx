@@ -62,6 +62,26 @@ const BulkUpload = () => {
      }
   });
 
+  const handleDownloadTemplate = () => {
+    const templateData = [
+      {
+        name: 'Sample Product Name',
+        price: 999,
+        category: categories[0] || 'Grocery',
+        image: 'https://images.unsplash.com/photo-1542838132-92c53300491e',
+        description: 'Product description goes here',
+        sizes: 'S, M, L, XL',
+        colors: 'Red, Blue, Green'
+      }
+    ];
+
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Template");
+    XLSX.writeFile(wb, "HB_Store_Bulk_Upload_Template.xlsx");
+    addToast('Template downloaded! Use this format for bulk upload.', 'info');
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center mb-6">
@@ -69,10 +89,14 @@ const BulkUpload = () => {
             <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Bulk Upload Products</h1>
             <p className="text-gray-500 text-sm">Add thousands of products instantly using Excel/CSV templates.</p>
          </div>
-         <button className="bg-gray-100 text-gray-800 px-5 py-2.5 rounded-xl font-bold hover:bg-gray-200 transition-colors text-sm shadow-sm flex items-center gap-2 border border-gray-200">
+         <button 
+           onClick={handleDownloadTemplate}
+           className="bg-gray-100 text-gray-800 px-5 py-2.5 rounded-xl font-bold hover:bg-gray-200 transition-colors text-sm shadow-sm flex items-center gap-2 border border-gray-200"
+         >
            <FileSpreadsheet className="h-4 w-4" /> Download Template
          </button>
       </div>
+
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
          {/* Dropzone Area */}

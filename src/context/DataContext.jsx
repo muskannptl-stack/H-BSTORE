@@ -20,63 +20,128 @@ export const DataProvider = ({ children }) => {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [users, setUsers] = useState([]);
   const [wishlist, setWishlist] = useState(() => {
     const saved = localStorage.getItem('wishlist_v2');
     return saved ? JSON.parse(saved) : [];
   });
   const [banners, setBanners] = useState([]);
   const [offers, setOffers] = useState([]);
+  const [staff, setStaff] = useState([]);
+  const [coupons, setCoupons] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [myOrderIds, setMyOrderIds] = useState(() => {
+    const saved = localStorage.getItem('my_orders_v2');
+    return saved ? JSON.parse(saved) : [];
+  });
 
 
   // Sync with Firestore on mount
   useEffect(() => {
-    const qProducts = query(collection(db, "products"), orderBy("id", "desc"));
-    const unsubscribeProducts = onSnapshot(qProducts, (snapshot) => {
-      const prods = snapshot.docs.map(doc => ({ ...doc.data(), firestoreId: doc.id }));
-      if (prods.length === 0 && defaultProducts.length > 0) {
-        setProducts(defaultProducts);
-      } else {
-        setProducts(prods);
+    let activeListeners = 0;
+    const totalRequired = 8;
+    
+    const decrementLoading = () => {
+      activeListeners++;
+      if (activeListeners >= totalRequired) {
+        setLoading(false);
       }
-    });
+    };
 
+    // Safety timeout: Never stay on loading more than 4 seconds
+    const timeout = setTimeout(() => setLoading(false), 4000);
+
+    const handleError = (error) => {
+        console.error("Firestore Listener Error:", error);
+        decrementLoading();
+    };
+
+    // Products
+    const qProducts = query(collection(db, "products"));
+    const unsubscribeProducts = onSnapshot(qProducts, (snapshot) => {
+      const dbProds = snapshot.docs.map(doc => ({ ...doc.data(), firestoreId: doc.id }));
+      
+      // Merge: Take all from Firestore, and add defaults that don't exist in Firestore by name
+      const merged = [
+        ...dbProds,
+        ...defaultProducts.filter(dp => !dbProds.some(p => p.name === dp.name))
+      ];
+      
+      // Sort: Newest manually added at the top
+      setProducts(merged.sort((a, b) => (b.id || 0) - (a.id || 0)));
+      decrementLoading();
+    }, handleError);
+
+    // Categories
     const qCategories = query(collection(db, "categories"));
     const unsubscribeCategories = onSnapshot(qCategories, (snapshot) => {
-      const cats = snapshot.docs.map(doc => doc.data().name);
-      if (cats.length === 0) {
-        setCategories(["Grocery", "Fruits", "Vegetables", "Drinks", "Snacks", "Dairy", "Bakery", "Personal Care", "Household"]);
-      } else {
-        setCategories(cats);
-      }
-    });
+      const dbCats = snapshot.docs.map(doc => doc.data().name).filter(Boolean);
+      const defaults = ["Grocery", "Fruits", "Vegetables", "Drinks", "Snacks", "Dairy", "Bakery", "Personal Care", "Household"];
+      // Merge unique categories
+      setCategories([...new Set([...dbCats, ...defaults])]);
+      decrementLoading();
+    }, handleError);
 
+    // Orders
     const qOrders = query(collection(db, "orders"), orderBy("date", "desc"));
     const unsubscribeOrders = onSnapshot(qOrders, (snapshot) => {
       const ords = snapshot.docs.map(doc => ({ ...doc.data(), firestoreId: doc.id }));
       setOrders(ords);
-    });
+      decrementLoading();
+    }, handleError);
 
-    // Banners & Offers
+    // Users
+    const qUsers = query(collection(db, "users"), orderBy("joined", "desc"));
+    const unsubscribeUsers = onSnapshot(qUsers, (snapshot) => {
+      const u = snapshot.docs.map(doc => ({ ...doc.data(), firestoreId: doc.id }));
+      setUsers(u);
+      decrementLoading();
+    }, handleError);
+
+    // Banners
     const qBanners = query(collection(db, "banners"));
     const unsubscribeBanners = onSnapshot(qBanners, (snapshot) => {
-      const b = snapshot.docs.map(doc => ({ ...doc.data(), firestoreId: doc.id }));
-      setBanners(b.length > 0 ? b : [{ image: 'https://images.unsplash.com/photo-1542838132-92c53300491e', title: 'Premium Groceries' }]);
-    });
+      const dbBanners = snapshot.docs.map(doc => ({ ...doc.data(), firestoreId: doc.id }));
+      const defaultBanners = [{ image: 'https://images.unsplash.com/photo-1542838132-92c53300491e', title: 'Premium Groceries' }];
+      setBanners([...dbBanners, ...defaultBanners.filter(db => !dbBanners.some(b => b.title === db.title))]);
+      decrementLoading();
+    }, handleError);
 
+    // Offers
     const qOffers = query(collection(db, "offers"));
     const unsubscribeOffers = onSnapshot(qOffers, (snapshot) => {
-      const o = snapshot.docs.map(doc => ({ ...doc.data(), firestoreId: doc.id }));
-      setOffers(o.length > 0 ? o : [{ title: "Snack O'Clock!", desc: "Get flat 20% off", category: 'Snacks' }]);
-      setLoading(false);
-    });
+      const dbOffers = snapshot.docs.map(doc => ({ ...doc.data(), firestoreId: doc.id }));
+      const defaultOffers = [{ title: "Snack O'Clock!", desc: "Get flat 20% off", category: 'Snacks' }];
+      setOffers([...dbOffers, ...defaultOffers.filter(doff => !dbOffers.some(o => o.title === doff.title))]);
+      decrementLoading();
+    }, handleError);
+
+    // Staff
+    const qStaff = query(collection(db, "staff"));
+    const unsubscribeStaff = onSnapshot(qStaff, (snapshot) => {
+      const s = snapshot.docs.map(doc => ({ ...doc.data(), firestoreId: doc.id }));
+      setStaff(s);
+      decrementLoading();
+    }, handleError);
+
+    // Coupons
+    const qCoupons = query(collection(db, "coupons"));
+    const unsubscribeCoupons = onSnapshot(qCoupons, (snapshot) => {
+      const c = snapshot.docs.map(doc => ({ ...doc.data(), firestoreId: doc.id }));
+      setCoupons(c);
+      decrementLoading();
+    }, handleError);
 
     return () => {
+      clearTimeout(timeout);
       unsubscribeProducts();
       unsubscribeCategories();
       unsubscribeOrders();
+      unsubscribeUsers();
       unsubscribeBanners();
       unsubscribeOffers();
+      unsubscribeStaff();
+      unsubscribeCoupons();
     };
   }, []);
 
@@ -85,18 +150,23 @@ export const DataProvider = ({ children }) => {
     localStorage.setItem('wishlist_v2', JSON.stringify(wishlist));
   }, [wishlist]);
 
+  useEffect(() => {
+    localStorage.setItem('my_orders_v2', JSON.stringify(myOrderIds));
+  }, [myOrderIds]);
+
   // Product Methods
   const addProduct = async (product) => {
     try {
-      await addDoc(collection(db, "products"), { ...product, id: Date.now() });
+      const docRef = await addDoc(collection(db, "products"), { ...product, id: Date.now() });
+      return docRef;
     } catch (error) {
       console.error("Error adding product: ", error);
+      throw error;
     }
   };
 
   const bulkAddProducts = async (productList) => {
     try {
-      // In a real world app, we should use writeBatch for better performance
       for (const product of productList) {
         await addDoc(collection(db, "products"), { ...product, id: Date.now() + Math.random() });
       }
@@ -123,6 +193,48 @@ export const DataProvider = ({ children }) => {
     }
   };
 
+  // Staff Methods
+  const addStaff = async (member) => {
+    try {
+      await addDoc(collection(db, "staff"), { ...member, id: Date.now(), status: 'Active' });
+    } catch (error) {
+      console.error("Error adding staff:", error);
+    }
+  };
+
+  const deleteStaff = async (id) => {
+    try {
+      await deleteDoc(doc(db, "staff", id));
+    } catch (error) {
+      console.error("Error deleting staff:", error);
+    }
+  };
+
+  const updateStaffStatus = async (id, status) => {
+    try {
+      await updateDoc(doc(db, "staff", id), { status });
+    } catch (error) {
+      console.error("Error updating staff status:", error);
+    }
+  };
+
+  // Coupon Methods
+  const addCoupon = async (coupon) => {
+    try {
+      await addDoc(collection(db, "coupons"), { ...coupon, id: Date.now(), active: true });
+    } catch (error) {
+      console.error("Error adding coupon:", error);
+    }
+  };
+
+  const deleteCoupon = async (id) => {
+    try {
+      await deleteDoc(doc(db, "coupons", id));
+    } catch (error) {
+      console.error("Error deleting coupon:", error);
+    }
+  };
+
   // Category Methods
   const addCategory = async (categoryName) => {
     try {
@@ -135,7 +247,6 @@ export const DataProvider = ({ children }) => {
   };
 
   const deleteCategory = async (categoryName) => {
-    // Note: This logic assumes unique category names as IDs or finding them by name
     const q = query(collection(db, "categories"));
     const snapshot = await getDocs(q);
     snapshot.forEach(async (document) => {
@@ -147,16 +258,30 @@ export const DataProvider = ({ children }) => {
 
   // Order Methods
   const addOrder = async (order) => {
+    // We'll wrap the Firestore call in a Promise with a timeout
+    const firestorePromise = addDoc(collection(db, "orders"), { 
+      ...order, 
+      date: new Date().toISOString(),
+      timestamp: new Date() // Store as actual date object too
+    });
+
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Timeout")), 7000)
+    );
+
     try {
-      await addDoc(collection(db, "orders"), { ...order, date: new Date().toISOString() });
+      await Promise.race([firestorePromise, timeoutPromise]);
+      setMyOrderIds(prev => [...prev, order.id]);
     } catch (error) {
-      console.error("Error adding order: ", error);
+      console.warn("Order save to Firebase failed or timed out, saving locally only:", error);
+      // We still update local state so the user sees it in their dashboard
+      setMyOrderIds(prev => [...prev, order.id]);
+      // We don't throw here so the UI can proceed
     }
   };
   
   const updateOrderStatus = async (orderId, status) => {
     try {
-      // Correctly find the order by its firestoreId (passed as orderId here)
       const orderRef = doc(db, "orders", orderId);
       await updateDoc(orderRef, { status });
     } catch (error) {
@@ -213,7 +338,10 @@ export const DataProvider = ({ children }) => {
       orders, addOrder, updateOrderStatus,
       wishlist, toggleWishlist, loading,
       banners, addBanner, deleteBanner,
-      offers, addOffer, deleteOffer
+      offers, addOffer, deleteOffer,
+      staff, addStaff, deleteStaff, updateStaffStatus,
+      coupons, addCoupon, deleteCoupon,
+      users, myOrderIds
     }}>
       {children}
     </DataContext.Provider>

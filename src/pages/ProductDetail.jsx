@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { useCart } from '../context/CartContext';
-import { ChevronRight, ShieldCheck, Truck, Plus, Minus, Heart } from 'lucide-react';
+import { ChevronRight, Shield, Truck, Plus, Minus, Heart } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
 
 const ProductDetail = () => {
   const { id } = useParams();
   const { products, wishlist, toggleWishlist } = useData();
   const { cartItems, addToCart, updateQuantity } = useCart();
+  const navigate = useNavigate();
   
   const product = products.find(p => p.id === parseInt(id));
   const cartItem = cartItems.find(item => item.id === product?.id);
@@ -102,19 +103,19 @@ const ProductDetail = () => {
             </div>
 
             {/* Action */}
-            <div className="mt-auto pt-6">
+            <div className="mt-auto pt-6 flex flex-col sm:flex-row gap-4">
               {cartItem ? (
-                <div className="flex items-center justify-center bg-green-500 rounded-xl text-white font-medium p-2 w-full sm:w-64 mx-auto md:mx-0 shadow-lg shadow-green-200">
+                <div className="flex items-center justify-center bg-gray-100 rounded-2xl text-gray-900 font-medium p-1 flex-1">
                   <button 
                     onClick={() => updateQuantity(product.id, -1)}
-                    className="w-12 h-12 flex items-center justify-center hover:bg-green-600 rounded-lg transition-colors active:scale-95"
+                    className="w-12 h-12 flex items-center justify-center hover:bg-white rounded-xl transition-all shadow-sm active:scale-95"
                   >
                     <Minus className="h-5 w-5" />
                   </button>
-                  <span className="flex-1 text-center text-xl font-bold">{cartItem.quantity} <span className="text-xs font-normal opacity-80 block">in cart</span></span>
+                  <span className="flex-1 text-center text-lg font-bold">{cartItem.quantity}</span>
                   <button 
                     onClick={() => updateQuantity(product.id, 1)}
-                    className="w-12 h-12 flex items-center justify-center hover:bg-green-600 rounded-lg transition-colors active:scale-95"
+                    className="w-12 h-12 flex items-center justify-center hover:bg-white rounded-xl transition-all shadow-sm active:scale-95"
                   >
                     <Plus className="h-5 w-5" />
                   </button>
@@ -122,26 +123,36 @@ const ProductDetail = () => {
               ) : (
                 <button 
                   onClick={() => addToCart(product)}
-                  className="w-full sm:w-64 bg-green-600 text-white font-bold text-lg py-4 px-6 rounded-xl hover:bg-green-700 shadow-lg shadow-green-200 transition-all active:scale-95"
+                  className="flex-1 bg-white border-2 border-green-600 text-green-600 font-bold text-lg py-4 px-6 rounded-2xl hover:bg-green-50 transition-all active:scale-95 uppercase tracking-wider"
                 >
-                  ADD TO CART
+                  Add to Cart
                 </button>
               )}
+              
+              <button 
+                onClick={() => {
+                  if (!cartItem) addToCart(product);
+                  navigate('/checkout');
+                }}
+                className="flex-[1.5] bg-green-600 text-white font-black text-lg py-4 px-8 rounded-2xl hover:bg-green-700 shadow-xl shadow-green-100 transition-all active:scale-95 uppercase tracking-widest"
+              >
+                Buy Now
+              </button>
             </div>
             
             {/* Promises */}
-            <div className="grid grid-cols-2 gap-4 mt-8 bg-gray-50 p-4 rounded-2xl">
-              <div className="flex items-center gap-3">
-                <div className="bg-white p-2 rounded-lg shadow-sm">
-                  <Truck className="h-5 w-5 text-green-600" />
+            <div className="grid grid-cols-2 gap-4 mt-8 bg-gray-50 p-6 rounded-3xl border border-gray-100/50">
+              <div className="flex items-center gap-4">
+                <div className="bg-white p-3 rounded-2xl shadow-sm">
+                  <Truck className="h-6 w-6 text-green-600" />
                 </div>
-                <div className="text-sm"><span className="font-semibold block text-gray-800">Superfast</span> <span className="text-gray-500">Delivery</span></div>
+                <div className="text-xs font-bold leading-tight"><span className="block text-gray-900">Express</span> <span className="text-gray-400">Delivery</span></div>
               </div>
-              <div className="flex items-center gap-3">
-                 <div className="bg-white p-2 rounded-lg shadow-sm">
-                  <ShieldCheck className="h-5 w-5 text-green-600" />
+              <div className="flex items-center gap-4">
+                 <div className="bg-white p-3 rounded-2xl shadow-sm">
+                   <Shield className="h-6 w-6 text-green-600" />
                  </div>
-                 <div className="text-sm"><span className="font-semibold block text-gray-800">100% Genuine</span> <span className="text-gray-500">Products</span></div>
+                 <div className="text-xs font-bold leading-tight"><span className="block text-gray-900">Genuine</span> <span className="text-gray-400">Guaranteed</span></div>
               </div>
             </div>
 

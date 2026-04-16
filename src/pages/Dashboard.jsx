@@ -6,7 +6,14 @@ import { User, LogOut, Package, MapPin, Clock } from 'lucide-react';
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
-  const { orders } = useData();
+  const { orders, myOrderIds } = useData();
+
+  const myOrders = React.useMemo(() => {
+    return orders.filter(order => 
+      myOrderIds.includes(order.id) || 
+      (user?.email && order.email === user.email)
+    );
+  }, [orders, myOrderIds, user]);
 
   if (!user) {
     return <Navigate to="/login" replace />;
@@ -42,7 +49,7 @@ const Dashboard = () => {
               Order History
             </h2>
             
-            {orders.length === 0 ? (
+            {myOrders.length === 0 ? (
               <div className="text-center py-16 bg-gray-50 rounded-2xl border border-gray-100">
                 <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900">No orders yet</h3>
@@ -51,7 +58,7 @@ const Dashboard = () => {
               </div>
             ) : (
               <div className="space-y-6">
-                {orders.map((order, index) => (
+                {myOrders.map((order, index) => (
                   <div key={index} className="border border-gray-200 rounded-2xl p-6 hover:shadow-md transition-shadow">
                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4 border-b border-gray-100 pb-4">
                       <div>

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
-import { Trash2, Plus, Minus, ArrowRight, ShoppingBag } from 'lucide-react';
+import { Trash2, Plus, Minus, ArrowRight, ShoppingBag, Shield } from 'lucide-react';
 
 const Cart = () => {
   const { cartItems, updateQuantity, removeFromCart, getCartTotal } = useCart();
@@ -117,7 +117,7 @@ const Cart = () => {
               </div>
             </button>
             <div className="mt-4 flex items-center justify-center gap-2 text-xs text-gray-400">
-              <ShieldCheck className="h-4 w-4" />
+              <Shield className="h-4 w-4" />
               <span>Safe and secure payments</span>
             </div>
           </div>

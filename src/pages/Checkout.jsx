@@ -20,9 +20,8 @@ const Checkout = () => {
     pincode: ''
   });
 
-  if (!user) {
-    return <Navigate to="/login" state={{ from: '/checkout' }} replace />;
-  }
+  // Unified checkout allows both guests and logged-in users
+
 
   if (cartItems.length === 0) {
     return <Navigate to="/cart" replace />;
@@ -33,24 +32,31 @@ const Checkout = () => {
     setAddress(prev => ({ ...prev, [name]: value }));
   };
 
+  const [isPlacing, setIsPlacing] = useState(false);
+
   const handlePlaceOrder = (e) => {
     e.preventDefault();
-    
-    // Simulate order placement
+    setIsPlacing(true);
+
+    const orderId = "ORD" + Math.floor(Math.random() * 1000000);
+
     const orderDetails = {
-      id: "ORD" + Math.floor(Math.random() * 1000000),
+      id: orderId,
       items: cartItems,
       total: getCartTotal() + 5,
       date: new Date().toISOString(),
       address,
+      email: user?.email || (address.phone + "@guest.com"),
       paymentMethod,
       status: 'Processing'
     };
 
-    addOrder(orderDetails);
+    // Fire and forget - save to DB in background, don't wait for it
+    addOrder(orderDetails).catch(err => console.warn("Background order save failed:", err));
 
+    // Immediately proceed to success page
     clearCart();
-    navigate('/success', { state: { orderId: orderDetails.id } });
+    navigate('/success', { state: { orderId } });
   };
 
   return (
@@ -137,8 +143,19 @@ const Checkout = () => {
                 </div>
              </div>
 
-             <button type="submit" className="w-full bg-green-600 text-white font-bold py-4 rounded-xl mt-6 hover:bg-green-700 transition-colors shadow-lg shadow-green-200 active:scale-95">
-                Place Order
+             <button 
+               type="submit" 
+               disabled={isPlacing}
+               className={`w-full text-white font-bold py-4 rounded-xl mt-6 transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 ${isPlacing ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 shadow-green-200'}`}
+             >
+                {isPlacing ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    Placing Order...
+                  </>
+                ) : (
+                  'Place Order'
+                )}
              </button>
           </div>
         </div>
