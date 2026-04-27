@@ -34,9 +34,12 @@ const Categories = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
          <AnimatePresence>
-            {categories.map((cat, i) => (
+            {(categories || []).map((cat, i) => {
+              const catName = typeof cat === 'string' ? cat : (cat?.name || 'Unnamed Category');
+              const catId = typeof cat === 'string' ? cat : (cat?.id || i);
+              return (
               <motion.div 
-                key={cat}
+                key={catId}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 whileHover={{ y: -5 }}
@@ -48,15 +51,15 @@ const Categories = () => {
                     <div className="p-3 bg-gray-50 rounded-2xl group-hover:bg-gray-900 group-hover:text-white transition-all">
                        <Tag className="h-6 w-6" />
                     </div>
-                    <h3 className="text-lg font-black text-gray-900 truncate">{cat}</h3>
+                    <h3 className="text-lg font-black text-gray-900 truncate">{catName}</h3>
                  </div>
 
                  <div className="flex items-center justify-between text-[10px] font-bold text-gray-400 uppercase tracking-widest">
                     <span>Active Collection</span>
                     <button 
                       onClick={() => {
-                        if(window.confirm(`Delete "${cat}"? Products in this category will become uncategorized.`)) {
-                          deleteCategory(cat);
+                        if(window.confirm(`Delete "${catName}"?`)) {
+                          deleteCategory(catId);
                         }
                       }}
                       className="text-red-300 hover:text-red-500 transition-colors p-2"
@@ -65,7 +68,7 @@ const Categories = () => {
                     </button>
                  </div>
               </motion.div>
-            ))}
+            )})}
          </AnimatePresence>
       </div>
 

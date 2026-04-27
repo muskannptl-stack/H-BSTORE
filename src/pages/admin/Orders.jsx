@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useData } from '../../context/DataContext';
-import { Search, Filter, Printer } from 'lucide-react';
+import { Search, Filter, Printer, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const Orders = () => {
-  const { orders, updateOrderStatus } = useData();
+  const { orders, myLocalOrders, updateOrderStatus, deleteOrder } = useData();
   const [searchTerm, setSearchTerm] = useState('');
 
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -14,16 +14,36 @@ const Orders = () => {
   };
 
   const statusColors = {
-    'Processing': 'bg-yellow-100 text-yellow-800',
-    'Dispatched': 'bg-blue-100 text-blue-800',
+    'Pending': 'bg-gray-100 text-gray-800',
+    'Confirmed': 'bg-blue-100 text-blue-800',
+    'Preparing': 'bg-yellow-100 text-yellow-800',
+    'Out for Delivery': 'bg-purple-100 text-purple-800',
     'Delivered': 'bg-green-100 text-green-800',
     'Cancelled': 'bg-red-100 text-red-800'
   };
 
-  const filteredOrders = orders.filter(o => 
-    o.id.toString().includes(searchTerm) || 
-    (o.address.name && o.address.name.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const allAdminOrders = React.useMemo(() => {
+    // Get matching orders from Firestore
+    const firestoreOrders = [...(orders || [])];
+    
+    // Merge: prefer Firestore data, fill in with local data
+    const firestoreIds = firestoreOrders.map(o => o.id);
+    const localOnly = (myLocalOrders || []).filter(o => !firestoreIds.includes(o.id));
+    
+    return [...firestoreOrders, ...localOnly].sort((a, b) => {
+      const dateA = new Date(a.created_at || a.date || 0);
+      const dateB = new Date(b.created_at || b.date || 0);
+      return dateB - dateA;
+    });
+  }, [orders, myLocalOrders]);
+
+  const filteredOrders = allAdminOrders.filter(o => {
+    const searchLower = searchTerm.toLowerCase();
+    const idMatch = String(o.id || "").toLowerCase().includes(searchLower);
+    const nameMatch = (o.address?.name || '').toLowerCase().includes(searchLower);
+    const phoneMatch = (o.address?.phone || '').toLowerCase().includes(searchLower);
+    return idMatch || nameMatch || phoneMatch;
+  });
 
   return (
     <div className="space-y-6 relative">
@@ -164,10 +184,21 @@ const Orders = () => {
             >
                <div className="flex flex-col md:flex-row justify-between mb-5 pb-5 border-b border-gray-50">
                   <div>
-                    <h3 className="font-extrabold text-gray-900 text-lg">Order #{order.id.toString().toUpperCase().slice(0, 8)}</h3>
+                    <h3 className="font-extrabold text-gray-900 text-lg">Order #{String(order.id || "").toUpperCase().slice(0, 8)}</h3>
                     <p className="text-xs text-gray-500 font-medium">{new Date(order.date).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</p>
                   </div>
                   <div className="mt-4 md:mt-0 flex items-center gap-4">
+                     <button 
+                      onClick={() => {
+                        if (window.confirm("Are you sure you want to completely delete this order? This cannot be undone.")) {
+                          deleteOrder(order.id);
+                        }
+                      }}
+                      className="text-red-400 hover:text-red-600 transition-colors p-2" 
+                      title="Delete Order"
+                     >
+                       <Trash2 className="h-4 w-4" />
+                     </button>
                      <button 
                       onClick={() => setSelectedOrder(order)}
                       className="text-gray-400 hover:text-blue-600 transition-colors p-2" 
@@ -179,11 +210,13 @@ const Orders = () => {
                      <div className="flex bg-gray-50 p-1.5 rounded-xl border border-gray-200">
                        <select 
                          value={order.status} 
-                         onChange={(e) => handleStatusChange(order.firestoreId || order.id, e.target.value)}
+                         onChange={(e) => handleStatusChange(order.id, e.target.value)}
                          className="px-2 py-1 bg-transparent text-sm font-semibold focus:outline-none cursor-pointer text-gray-700"
                        >
-                         <option value="Processing">Processing</option>
-                         <option value="Dispatched">Dispatched</option>
+                         <option value="Pending">Pending</option>
+                         <option value="Confirmed">Confirmed</option>
+                         <option value="Preparing">Preparing</option>
+                         <option value="Out for Delivery">Out for Delivery</option>
                          <option value="Delivered">Delivered</option>
                          <option value="Cancelled">Cancelled</option>
                        </select>
@@ -201,7 +234,15 @@ const Orders = () => {
                    <p className="text-sm text-gray-600 font-medium">{order.address.phone}</p>
                    <p className="text-sm text-gray-500 mt-2">{order.address.street}, {order.address.city} - {order.address.pincode}</p>
                    <div className="mt-4 pt-4 border-t border-gray-200 flex justify-between items-center">
-                     <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Payment: <span className="text-gray-800">{order.paymentMethod}</span></span>
+                     <div className="flex flex-col">
+                       <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Payment</span>
+                       <span className={`text-sm font-bold ${order.paymentMethod === 'Online' ? 'text-green-600' : 'text-orange-600'}`}>
+                         {order.paymentMethod === 'Online' ? 'PREPAID (ONLINE)' : 'CASH ON DELIVERY'}
+                       </span>
+                       {order.transactionId && (
+                         <span className="text-[10px] text-gray-500 font-medium mt-0.5">UTR: {order.transactionId}</span>
+                       )}
+                     </div>
                      <span className="text-lg font-extrabold text-gray-900">₹{order.total}</span>
                    </div>
                  </div>

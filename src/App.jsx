@@ -15,6 +15,7 @@ import { ToastProvider } from './context/ToastContext';
 
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import ScrollToTop from './components/ScrollToTop';
 import PageLoader from './components/PageLoader';
 import PageTransition from './components/PageTransition';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -26,8 +27,7 @@ const Products = lazy(() => import('./pages/Products'));
 const ProductDetail = lazy(() => import('./pages/ProductDetail'));
 const Cart = lazy(() => import('./pages/Cart'));
 const Checkout = lazy(() => import('./pages/Checkout'));
-const Login = lazy(() => import('./pages/Login'));
-const Signup = lazy(() => import('./pages/Signup'));
+const Auth = lazy(() => import('./pages/Auth'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Success = lazy(() => import('./pages/Success'));
 const Wishlist = lazy(() => import('./pages/Wishlist'));
@@ -35,8 +35,7 @@ const NotFound = lazy(() => import('./pages/NotFound'));
 
 // Admin Pages
 const AdminLayout = lazy(() => import('./components/AdminLayout'));
-const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'));
-const DashboardHome = lazy(() => import('./pages/admin/DashboardHome'));
+const AdminDashboard = lazy(() => import('./pages/admin/DashboardHome'));
 const AdminProducts = lazy(() => import('./pages/admin/Products'));
 const ProductForm = lazy(() => import('./pages/admin/ProductForm'));
 const Categories = lazy(() => import('./pages/admin/Categories'));
@@ -69,8 +68,8 @@ const AnimatedRoutes = () => {
           <Route path="product/:id" element={<Suspense fallback={<PageLoader />}><PageTransition><ProductDetail /></PageTransition></Suspense>} />
           <Route path="cart" element={<Suspense fallback={<PageLoader />}><PageTransition><Cart /></PageTransition></Suspense>} />
           <Route path="checkout" element={<Suspense fallback={<PageLoader />}><PageTransition><Checkout /></PageTransition></Suspense>} />
-          <Route path="login" element={<Suspense fallback={<PageLoader />}><PageTransition><Login /></PageTransition></Suspense>} />
-          <Route path="signup" element={<Suspense fallback={<PageLoader />}><PageTransition><Signup /></PageTransition></Suspense>} />
+          <Route path="login" element={<Suspense fallback={<PageLoader />}><PageTransition><Auth /></PageTransition></Suspense>} />
+          <Route path="signup" element={<Suspense fallback={<PageLoader />}><PageTransition><Auth /></PageTransition></Suspense>} />
           <Route path="dashboard" element={<Suspense fallback={<PageLoader />}><PageTransition><Dashboard /></PageTransition></Suspense>} />
           <Route path="success" element={<Suspense fallback={<PageLoader />}><PageTransition><Success /></PageTransition></Suspense>} />
           <Route path="wishlist" element={<Suspense fallback={<PageLoader />}><PageTransition><Wishlist /></PageTransition></Suspense>} />
@@ -78,9 +77,9 @@ const AnimatedRoutes = () => {
         </Route>
 
         {/* Admin Routes */}
-        <Route path="/admin/login" element={<Suspense fallback={<PageLoader />}><PageTransition><AdminLogin /></PageTransition></Suspense>} />
+        <Route path="/admin/login" element={<Suspense fallback={<PageLoader />}><PageTransition><Auth /></PageTransition></Suspense>} />
         <Route path="/admin" element={<Suspense fallback={<PageLoader />}><AdminLayout /></Suspense>}>
-          <Route index element={<Suspense fallback={<PageLoader />}><PageTransition><DashboardHome /></PageTransition></Suspense>} />
+          <Route index element={<Suspense fallback={<PageLoader />}><PageTransition><AdminDashboard /></PageTransition></Suspense>} />
           <Route path="products" element={<Suspense fallback={<PageLoader />}><PageTransition><AdminProducts /></PageTransition></Suspense>} />
           <Route path="products/add" element={<Suspense fallback={<PageLoader />}><PageTransition><ProductForm /></PageTransition></Suspense>} />
           <Route path="products/edit/:id" element={<Suspense fallback={<PageLoader />}><PageTransition><ProductForm /></PageTransition></Suspense>} />
@@ -103,6 +102,7 @@ const UserLayout = () => (
     <main className="flex-grow pt-20">
       <Outlet />
     </main>
+    <ScrollToTop />
     <Footer />
   </div>
 );

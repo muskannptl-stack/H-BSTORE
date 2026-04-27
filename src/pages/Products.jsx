@@ -31,17 +31,17 @@ const Products = () => {
     if (searchParam !== null && searchParam !== searchTerm) {
       setSearchTerm(searchParam);
     }
-  }, [categoryParam, searchParam]);
+  }, [categoryParam, searchParam, selectedCategory, searchTerm]);
 
   useEffect(() => {
-    let result = products;
+    let result = products || [];
 
     // Filter by search
     if (searchTerm) {
       const lowerSearch = searchTerm.toLowerCase();
       result = result.filter(p => 
-        p.name.toLowerCase().includes(lowerSearch) || 
-        p.category.toLowerCase().includes(lowerSearch)
+        (p.name?.toLowerCase() || '').includes(lowerSearch) || 
+        (p.category?.toLowerCase() || '').includes(lowerSearch)
       );
     }
 
@@ -59,7 +59,7 @@ const Products = () => {
     }
 
     setFilteredProducts(result);
-  }, [searchTerm, selectedCategory, priceRange]);
+  }, [searchTerm, selectedCategory, priceRange, products]);
 
   const handleCategorySelect = (cat) => {
     setSelectedCategory(cat);

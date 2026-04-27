@@ -15,9 +15,12 @@ const Products = () => {
     }
   };
 
+  const getCatName = (cat) => typeof cat === 'string' ? cat : (cat?.name || '');
+
   const filteredProducts = products.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          p.category.toLowerCase().includes(searchTerm.toLowerCase());
+    const name = (p?.name || '').toLowerCase();
+    const category = (p?.category || '').toLowerCase();
+    const matchesSearch = name.includes(searchTerm.toLowerCase()) || category.includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === 'All' || p.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
@@ -58,7 +61,10 @@ const Products = () => {
               className="flex-1 md:w-48 px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm outline-none focus:ring-2 focus:ring-gray-900 transition-all cursor-pointer"
             >
               <option value="All">All Categories</option>
-              {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+              {(categories || []).map(cat => {
+                const name = getCatName(cat);
+                return <option key={name} value={name}>{name}</option>;
+              })}
             </select>
           </div>
         </div>
@@ -82,7 +88,7 @@ const Products = () => {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    key={product.firestoreId || product.id} 
+                    key={product.id} 
                     className="hover:bg-gray-25 transition-colors group"
                   >
                     <td className="p-4">
@@ -93,7 +99,7 @@ const Products = () => {
                         </div>
                         <div className="min-w-0">
                           <p className="font-bold text-gray-900 text-sm whitespace-nowrap overflow-hidden text-ellipsis">{product.name}</p>
-                          <p className="text-xs text-gray-400 line-clamp-1">ID: #{product.id.toString().slice(-6)}</p>
+                          <p className="text-xs text-gray-400 line-clamp-1">ID: #{String(product.id || "").slice(-6)}</p>
                         </div>
                       </div>
                     </td>
@@ -110,19 +116,19 @@ const Products = () => {
                     </td>
                     <td className="p-4">
                       <div className="flex flex-wrap gap-1">
-                        {product.sizes ? (
-                          product.sizes.split(',').map(s => (
-                            <span key={s} className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-[9px] font-bold">{s.trim()}</span>
+                        {product.sizes && product.sizes.length > 0 ? (
+                          (Array.isArray(product.sizes) ? product.sizes : product.sizes.split(',')).map((s, si) => (
+                            <span key={si} className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-[9px] font-bold">{String(s).trim()}</span>
                           ))
                         ) : <span className="text-gray-300 text-[10px]">No sizes</span>}
                       </div>
                     </td>
                     <td className="p-4 text-right">
                       <div className="flex items-center justify-end gap-1 opacity-10 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Link to={`/admin/products/edit/${product.firestoreId || product.id}`} className="p-2 text-blue-500 hover:bg-blue-50 rounded-xl transition-all" title="Edit">
+                        <Link to={`/admin/products/edit/${product.id}`} className="p-2 text-blue-500 hover:bg-blue-50 rounded-xl transition-all" title="Edit">
                           <Edit2 className="h-4 w-4" />
                         </Link>
-                        <button onClick={() => handleDelete(product.firestoreId || product.id)} className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-all" title="Delete">
+                        <button onClick={() => handleDelete(product.id)} className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-all" title="Delete">
                           <Trash2 className="h-4 w-4" />
                         </button>
                         <button className="p-2 text-gray-400 hover:bg-gray-50 rounded-xl transition-all">

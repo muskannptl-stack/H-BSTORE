@@ -15,19 +15,24 @@ const AdminLogin = () => {
   const { addToast } = useToast();
   const navigate = useNavigate();
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
-    // Simulate API delay
-    setTimeout(() => {
-      if (email === 'mrsunil' && password === '@mrsunil4U') {
-        setStep(2);
-        addToast('Credentials verified. Please enter OTP sent to your device.', 'success');
-      } else {
-        addToast('Access Denied: Invalid admin credentials.', 'error');
-      }
+    try {
+      const { data, error } = await login(email, password);
+      if (error) throw error;
+      
+      // The session change will be handled by AuthContext, 
+      // but we need to wait for the profile to load to check role
+      addToast('Credentials verified. Entering secure area...', 'success');
+      setTimeout(() => {
+        navigate('/admin');
+      }, 1000);
+    } catch (error) {
+      addToast(error.message || 'Access Denied: Invalid admin credentials.', 'error');
+    } finally {
       setLoading(false);
-    }, 800);
+    }
   };
 
   const handleOtpVerify = (e) => {

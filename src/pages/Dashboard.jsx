@@ -2,18 +2,31 @@ import React from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
-import { User, LogOut, Package, MapPin, Clock } from 'lucide-react';
+import { User, LogOut, Package, MapPin, Clock, CheckCircle2, XCircle } from 'lucide-react';
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
-  const { orders, myOrderIds } = useData();
+  const { orders, myLocalOrders, updateOrderStatus } = useData();
 
   const myOrders = React.useMemo(() => {
-    return orders.filter(order => 
-      myOrderIds.includes(order.id) || 
-      (user?.email && order.email === user.email)
+    // Get order IDs from local storage (guest/local history)
+    const localIds = myLocalOrders.map(o => o.id);
+    
+    // Get matching orders from Supabase
+    const dbOrders = orders.filter(order => 
+      localIds.includes(order.id) || 
+      (user?.email && order.email === user.email) ||
+      (user?.id && order.user_id === user.id)
     );
-  }, [orders, myOrderIds, user]);
+    
+    // Merge: prefer DB data, fill in with local data for any missing
+    const dbIds = dbOrders.map(o => o.id);
+    const localOnly = myLocalOrders.filter(o => !dbIds.includes(o.id));
+    
+    return [...dbOrders, ...localOnly].sort((a, b) => 
+      new Date(b.created_at || b.date) - new Date(a.created_at || a.date)
+    );
+  }, [orders, myLocalOrders, user]);
 
   if (!user) {
     return <Navigate to="/login" replace />;
@@ -64,7 +77,7 @@ const Dashboard = () => {
                       <div>
                         <div className="text-sm text-gray-500 flex items-center gap-2 mb-1">
                           <Clock className="h-4 w-4" />
-                          {new Date(order.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          {new Date(order.created_at || order.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </div>
                         <div className="font-bold text-gray-900 border bg-gray-50 px-2 py-0.5 rounded text-xs select-all">Order ID: {order.id}</div>
                       </div>
@@ -100,9 +113,57 @@ const Dashboard = () => {
                         </div>
                         <div className="mt-3 pt-3 border-t border-gray-200">
                            <span className="font-semibold">Payment: </span>
-                           <span className="text-gray-600">{order.paymentMethod}</span>
+                           <span className="text-gray-600">{order.payment_method || order.paymentMethod}</span>
                         </div>
                       </div>
+                    </div>
+                    
+                    {/* Live Tracking & Actions */}
+                    <div className="mt-6 pt-6 border-t border-gray-100">
+                      {order.status === 'Cancelled' ? (
+                        <div className="flex items-center gap-2 text-red-600 bg-red-50 p-4 rounded-xl">
+                          <XCircle className="h-5 w-5" />
+                          <span className="font-semibold">This order was cancelled.</span>
+                        </div>
+                      ) : (
+                        <div>
+                          <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Live Tracking</h4>
+                          <div className="flex items-center justify-between relative">
+                            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-gray-100 rounded-full z-0"></div>
+                            
+                            {['Pending', 'Confirmed', 'Preparing', 'Out for Delivery', 'Delivered'].map((step, idx, arr) => {
+                              const steps = ['Pending', 'Confirmed', 'Preparing', 'Out for Delivery', 'Delivered'];
+                              const currentIndex = steps.indexOf(order.status);
+                              const isCompleted = currentIndex >= idx;
+                              const isCurrent = currentIndex === idx;
+                              
+                              return (
+                                <div key={step} className="relative z-10 flex flex-col items-center gap-2">
+                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center border-4 border-white shadow-sm transition-colors ${isCompleted ? 'bg-green-500' : 'bg-gray-200'}`}>
+                                    {isCompleted && <CheckCircle2 className="h-4 w-4 text-white" />}
+                                  </div>
+                                  <span className={`text-[10px] font-bold uppercase hidden sm:block ${isCurrent ? 'text-green-600' : 'text-gray-400'}`}>{step}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          
+                          {(order.status === 'Pending' || order.status === 'Confirmed') && (
+                            <div className="mt-6 text-right">
+                              <button 
+                                onClick={() => {
+                                  if (window.confirm("Are you sure you want to cancel this order?")) {
+                                    updateOrderStatus(order.id, 'Cancelled');
+                                  }
+                                }}
+                                className="text-red-500 hover:text-red-600 text-sm font-bold bg-white border border-red-100 hover:bg-red-50 px-4 py-2 rounded-lg transition-colors"
+                              >
+                                Cancel Order
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                   </div>

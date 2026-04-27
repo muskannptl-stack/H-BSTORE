@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://spontaneous-cupcake-352559.netlify.app/sitemap.xml

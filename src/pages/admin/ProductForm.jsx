@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useData } from '../../context/DataContext';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Image as ImageIcon, Upload, X, Check } from 'lucide-react';
+import { ArrowLeft, Upload, Check, X } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
+import { supabase } from '../../supabase/config';
 
 const ProductForm = () => {
   const { products, categories, addProduct, updateProduct } = useData();
@@ -11,14 +12,15 @@ const ProductForm = () => {
   const { addToast } = useToast();
   const fileInputRef = useRef(null);
   
-  const isSetup = id ? true : false;
-  const existingProduct = isSetup ? products.find(p => (p.firestoreId === id || p.id === parseInt(id))) : null;
+  const isEdit = id ? true : false;
+  const existingProduct = isEdit ? products.find(p => p.id === id) : null;
 
   const [formData, setFormData] = useState({
     name: '',
     price: '',
     category: categories[0] || '',
     image: '',
+    images: [],
     description: '',
     sizes: '',
     colors: '',
@@ -31,55 +33,104 @@ const ProductForm = () => {
     if (existingProduct) {
       setFormData({
         ...existingProduct,
+        images: existingProduct.images || [],
         sizes: Array.isArray(existingProduct.sizes) ? existingProduct.sizes.join(', ') : existingProduct.sizes || '',
         colors: Array.isArray(existingProduct.colors) ? existingProduct.colors.join(', ') : existingProduct.colors || '',
       });
+    } else if (categories.length > 0 && !formData.category) {
+      setFormData(prev => ({ ...prev, category: typeof categories[0] === 'object' ? categories[0].name : categories[0] }));
     }
-  }, [existingProduct]);
+  }, [existingProduct, categories]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleFileSelect = (e) => {
+  const handleFileSelect = async (e, type = 'main') => {
     const file = e.target.files[0];
     if (file) {
       setUploadLoading(true);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData({ ...formData, image: reader.result });
+      try {
+        addToast(`Uploading ${type} image...`, 'info');
+        
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const filePath = `products/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('products')
+          .upload(filePath, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('products')
+          .getPublicUrl(filePath);
+        
+        if (type === 'main') {
+          setFormData(prev => ({ ...prev, image: publicUrl }));
+        } else {
+          setFormData(prev => ({ ...prev, images: [...(prev.images || []), publicUrl] }));
+        }
+        addToast('Image uploaded successfully', 'success');
+      } catch (error) {
+        console.error("Upload failed", error);
+        addToast('Failed to upload image. Make sure "products" bucket exists.', 'error');
+      } finally {
         setUploadLoading(false);
-        addToast('Image selected successfully', 'success');
-      };
-      reader.readAsDataURL(file);
+      }
     }
+  };
+
+  const removeImage = (url) => {
+    setFormData(prev => ({
+      ...prev,
+      images: prev.images.filter(img => img !== url)
+    }));
   };
 
   const [isSaving, setIsSaving] = useState(false);
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!formData.image) {
+      addToast('Product main image is required', 'error');
+      return;
+    }
+    
     setIsSaving(true);
     
     try {
+      const parseList = (val) => {
+        if (!val) return [];
+        if (Array.isArray(val)) return val;
+        return val.split(',').map(s => s.trim()).filter(Boolean);
+      };
+
       const submitData = {
         ...formData,
         price: Number(formData.price),
         stock: Number(formData.stock),
-        sizes: typeof formData.sizes === 'string' ? formData.sizes.split(',').map(s => s.trim()) : formData.sizes,
-        colors: typeof formData.colors === 'string' ? formData.colors.split(',').map(c => c.trim()) : formData.colors,
+        sizes: parseList(formData.sizes),
+        colors: parseList(formData.colors),
       };
 
-      if (existingProduct) {
-        await updateProduct({ ...submitData, firestoreId: existingProduct.firestoreId, id: existingProduct.id });
-        addToast('Product updated successfully', 'success');
+      // Remove ID if adding new
+      if (!isEdit) delete submitData.id;
+
+      let result;
+      if (isEdit) {
+        result = await updateProduct({ ...submitData, id });
       } else {
-        await addProduct(submitData);
-        addToast('Product created successfully', 'success');
+        result = await addProduct(submitData);
       }
+
+      if (result?.error) throw result.error;
+
+      addToast(`Product ${isEdit ? 'updated' : 'created'} successfully`, 'success');
       navigate('/admin/products');
     } catch (error) {
       console.error("Error saving product:", error);
-      addToast('Failed to save product. Please try again.', 'error');
+      addToast(error.message || 'Failed to save product. Please try again.', 'error');
     } finally {
       setIsSaving(false);
     }
@@ -123,6 +174,39 @@ const ProductForm = () => {
                  placeholder="Describe the product quality, fabric, fit etc."
                  className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all font-medium resize-none"
                ></textarea>
+            </div>
+
+            {/* Gallery Section */}
+            <div className="pt-4">
+               <label className="block text-sm font-bold text-gray-700 mb-4">Product Gallery (Multiple Images)</label>
+               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {(formData.images || []).map((img, i) => (
+                    <div key={i} className="relative aspect-square rounded-2xl overflow-hidden border border-gray-100 group">
+                       <img src={img} className="w-full h-full object-cover" alt="" />
+                       <button 
+                         type="button"
+                         onClick={() => removeImage(img)}
+                         className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all shadow-lg"
+                       >
+                          <X className="h-3 w-3" />
+                       </button>
+                    </div>
+                  ))}
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      const input = document.createElement('input');
+                      input.type = 'file';
+                      input.accept = 'image/*';
+                      input.onchange = (e) => handleFileSelect(e, 'gallery');
+                      input.click();
+                    }}
+                    className="aspect-square rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center bg-gray-50 hover:bg-gray-100 transition-all text-gray-400 gap-2"
+                  >
+                     <Upload className="h-6 w-6" />
+                     <span className="text-[10px] font-bold uppercase tracking-wider">Add More</span>
+                  </button>
+               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -212,7 +296,7 @@ const ProductForm = () => {
                  <p className="text-xs text-gray-400 font-medium mb-4">Or use an External Link</p>
                  <input 
                    type="url" name="image" 
-                   value={formData.image.startsWith('data:') ? '' : formData.image} 
+                   value={formData.image?.startsWith('data:') ? '' : formData.image} 
                    onChange={handleChange} 
                    placeholder="Paste Image URL..." 
                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 outline-none" 

@@ -7,7 +7,7 @@ import { ProductSkeleton, CategorySkeleton } from '../components/Skeleton';
 import { ShoppingBag, Clock, Percent, ShieldCheck, Store } from 'lucide-react';
 
 const Home = () => {
-  const { products, categories, loading, banners, offers } = useData();
+  const { products, categories, loading, banners, offers, recentlyViewed } = useData();
   
   // Dynamic Content from Admin
   const mainBanner = banners[0] || { 
@@ -131,22 +131,62 @@ const Home = () => {
           {loading ? (
              Array(8).fill(0).map((_, i) => <CategorySkeleton key={i} />)
           ) : (
-            categories.map((cat, index) => {
-              const catImg = products.find(p => p.category === cat)?.image;
+            categories.map((category, index) => {
+              const catName = typeof category === 'object' ? category.name : category;
+              const catImg = products.find(p => p.category === catName)?.image;
               return (
                 <Link 
                   key={index} 
-                  to={`/products?category=${cat}`}
+                  to={`/products?category=${catName}`}
                   className="flex flex-col items-center group cursor-pointer"
                 >
                   <div className="w-full aspect-square bg-gray-100 rounded-2xl overflow-hidden mb-2 group-hover:shadow-md transition-shadow">
-                    <img src={catImg} alt={cat} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" />
+                    <img src={catImg} alt={catName} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" />
                   </div>
-                  <span className="font-medium text-gray-700 group-hover:text-green-600 transition-colors text-sm">{cat}</span>
+                  <span className="font-medium text-gray-700 group-hover:text-green-600 transition-colors text-sm">{catName}</span>
                 </Link>
               )
             })
           )}
+        </div>
+      </section>
+
+      {/* Deal of the Day */}
+      <section className="max-w-7xl mx-auto px-4 py-10">
+        <div className="bg-gradient-to-r from-yellow-400 to-orange-500 rounded-[3rem] p-8 md:p-12 flex flex-col md:flex-row items-center gap-10 relative overflow-hidden shadow-2xl shadow-orange-200">
+           {/* Decorative elements */}
+           <div className="absolute top-0 right-0 w-64 h-64 bg-white/20 rounded-full blur-3xl -mr-20 -mt-20"></div>
+           
+           <div className="flex-1 text-center md:text-left z-10">
+              <div className="inline-block bg-white/20 backdrop-blur-md px-4 py-1 rounded-full text-white text-xs font-bold uppercase tracking-widest mb-6">Limited Time Offer</div>
+              <h2 className="text-4xl md:text-5xl font-black text-white mb-4 leading-tight">Deal of the Day</h2>
+              <p className="text-orange-50 text-lg mb-8 max-w-md">Grab our freshest seasonal fruits at unbeatable prices. Only for the next few hours!</p>
+              
+              <div className="flex items-center justify-center md:justify-start gap-4 mb-8">
+                 {[
+                   { label: 'Hrs', val: '08' },
+                   { label: 'Min', val: '45' },
+                   { label: 'Sec', val: '12' }
+                 ].map((t, i) => (
+                   <div key={i} className="flex flex-col items-center">
+                      <div className="bg-white rounded-2xl w-16 h-16 flex items-center justify-center text-2xl font-black text-orange-600 shadow-lg">{t.val}</div>
+                      <span className="text-[10px] font-bold text-white uppercase mt-2 tracking-widest">{t.label}</span>
+                   </div>
+                 ))}
+              </div>
+              
+              <Link to="/products?category=Fruits" className="bg-white text-orange-600 px-8 py-4 rounded-2xl font-black text-lg hover:bg-orange-50 transition-all shadow-xl active:scale-95 inline-block">Claim Offer Now</Link>
+           </div>
+           
+           <div className="flex-1 relative z-10">
+              <motion.img 
+                animate={{ y: [0, -20, 0], rotate: [0, 5, 0] }}
+                transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+                src="https://images.unsplash.com/photo-1610832958506-aa56368176cf" 
+                alt="Fresh Fruits" 
+                className="w-full h-80 object-contain drop-shadow-[0_20px_50px_rgba(0,0,0,0.3)]" 
+              />
+           </div>
         </div>
       </section>
 
@@ -173,6 +213,21 @@ const Home = () => {
           )}
         </motion.div>
       </section>
+
+      {/* Recently Viewed */}
+      {recentlyViewed.length > 0 && (
+        <section className="max-w-7xl mx-auto px-4 py-10">
+          <div className="flex justify-between items-end mb-6">
+            <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Recently Viewed</h2>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {recentlyViewed.map(id => {
+              const p = products.find(prod => prod.id === id);
+              return p ? <ProductCard key={p.id} product={p} /> : null;
+            })}
+          </div>
+        </section>
+      )}
       
       {/* Promo Banner */}
       <section className="max-w-7xl mx-auto px-4 py-10">
@@ -187,6 +242,31 @@ const Home = () => {
                 <img key={p.id} src={p.image} className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg" alt={p.name} />
              ))}
           </div>
+        </div>
+      </section>
+      {/* Newsletter */}
+      <section className="max-w-7xl mx-auto px-4 py-20">
+        <div className="bg-gray-900 rounded-[3.5rem] p-8 md:p-20 text-center relative overflow-hidden">
+           {/* Abstract shapes */}
+           <div className="absolute top-0 left-0 w-64 h-64 bg-green-500 rounded-full blur-[120px] opacity-20 -ml-32 -mt-32"></div>
+           <div className="absolute bottom-0 right-0 w-64 h-64 bg-blue-500 rounded-full blur-[120px] opacity-20 -mr-32 -mb-32"></div>
+           
+           <div className="relative z-10 max-w-2xl mx-auto">
+              <h2 className="text-4xl md:text-5xl font-black text-white mb-6 tracking-tight">Join the Freshness!</h2>
+              <p className="text-gray-400 text-lg mb-10">Subscribe to get special offers, free giveaways, and once-in-a-lifetime deals.</p>
+              
+              <form className="flex flex-col sm:flex-row gap-4">
+                 <input 
+                   type="email" 
+                   placeholder="Enter your email address" 
+                   className="flex-1 bg-white/10 border border-white/10 rounded-2xl px-6 py-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:bg-white/20 transition-all font-medium"
+                 />
+                 <button className="bg-green-500 text-white px-8 py-4 rounded-2xl font-bold text-lg hover:bg-green-600 transition-all shadow-xl shadow-green-900/20 active:scale-95">
+                    Subscribe Now
+                 </button>
+              </form>
+              <p className="text-gray-500 text-xs mt-6">We respect your privacy. Unsubscribe at any time.</p>
+           </div>
         </div>
       </section>
     </div>

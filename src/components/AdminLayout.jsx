@@ -1,15 +1,33 @@
 import React from 'react';
-import { Navigate, Outlet, Link, useLocation } from 'react-router-dom';
+import { Navigate, Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../supabase/config';
 import { LayoutDashboard, Package, Tags, ShoppingBag, LogOut, Store, UserCircle, Ticket, Megaphone, UploadCloud, Shield } from 'lucide-react';
 
 const AdminLayout = () => {
-  const { user, logout } = useAuth();
+  const { user, loading: authLoading, logout } = useAuth();
+  const navigate = useNavigate();
   const location = useLocation();
 
-  if (!user || user.email !== 'mrsunil') {
-    return <Navigate to="/admin/login" replace />;
+  React.useEffect(() => {
+    if (!authLoading && (!user || (user.role !== 'admin' && user.role !== 'staff'))) {
+      console.warn("Unauthorized access to admin, redirecting...");
+      navigate("/admin/login");
+    }
+  }, [user, authLoading, navigate]);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="flex flex-col items-center">
+          <div className="w-12 h-12 border-4 border-green-200 border-t-green-600 rounded-full animate-spin mb-4"></div>
+          <h2 className="text-xl font-bold text-gray-700">Verifying Admin Access...</h2>
+        </div>
+      </div>
+    );
   }
+
+  if (!user || (user.role !== 'admin' && user.role !== 'staff')) return null;
 
   const navItems = [
     { name: 'Analytics', path: '/admin', icon: LayoutDashboard },

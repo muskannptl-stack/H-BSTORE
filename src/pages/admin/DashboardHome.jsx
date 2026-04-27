@@ -23,7 +23,7 @@ const DashboardHome = () => {
     });
 
     orders.forEach(order => {
-      const orderDate = new Date(order.date).toDateString();
+      const orderDate = new Date(order.created_at || order.date).toDateString();
       const chartDay = last7Days.find(d => d.fullDate === orderDate);
       if (chartDay) {
         chartDay.revenue += (order.total || 0);
@@ -152,13 +152,13 @@ const DashboardHome = () => {
               </thead>
               <tbody>
                 {orders.slice(0, 5).map((order) => (
-                  <tr key={order.firestoreId} className="border-b border-gray-50 hover:bg-gray-50/80 transition-all text-sm group">
-                    <td className="p-6 font-black text-gray-900">#{order.firestoreId?.slice(-6).toUpperCase()}</td>
+                  <tr key={order.id} className="border-b border-gray-50 hover:bg-gray-50/80 transition-all text-sm group">
+                    <td className="p-6 font-black text-gray-900">#{order.id?.toString().slice(-6).toUpperCase()}</td>
                     <td className="p-6">
                         <p className="text-sm font-bold text-gray-900">{order.address?.name || 'Guest User'}</p>
                         <p className="text-[10px] text-gray-400 font-medium">{order.address?.phone}</p>
                     </td>
-                    <td className="p-6 text-gray-500 font-bold">{new Date(order.date).toLocaleDateString()}</td>
+                    <td className="p-6 text-gray-500 font-bold">{new Date(order.created_at || order.date).toLocaleDateString()}</td>
                     <td className="p-6">
                       <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider ${order.status === 'Processing' ? 'bg-amber-100 text-amber-700' : order.status === 'Delivered' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
                         {order.status}

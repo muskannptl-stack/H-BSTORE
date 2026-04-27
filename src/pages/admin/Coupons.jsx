@@ -53,7 +53,7 @@ const Coupons = () => {
                 <AnimatePresence>
                   {coupons.map((c, i) => (
                     <motion.tr 
-                      key={c.firestoreId} 
+                      key={c.id} 
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0, x: -20 }}
@@ -86,7 +86,7 @@ const Coupons = () => {
                       <td className="p-6 text-gray-600 font-bold text-xs">{new Date(c.expiry).toLocaleDateString()}</td>
                       <td className="p-6 text-right">
                         <button 
-                          onClick={() => deleteCoupon(c.firestoreId)}
+                          onClick={() => deleteCoupon(c.id)}
                           className="p-2 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-lg transition-all"
                         >
                           <Trash2 className="h-4 w-4" />

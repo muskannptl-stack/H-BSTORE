@@ -1,17 +1,5 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
-import { db } from '../firebase/config';
-import { 
-  collection, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc, 
-  onSnapshot, 
-  query, 
-  orderBy,
-  setDoc,
-  getDocs
-} from 'firebase/firestore';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '../supabase/config';
 import { products as defaultProducts } from '../data/products';
 
 const DataContext = createContext();
@@ -20,328 +8,216 @@ export const DataProvider = ({ children }) => {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [orders, setOrders] = useState([]);
-  const [users, setUsers] = useState([]);
-  const [wishlist, setWishlist] = useState(() => {
-    const saved = localStorage.getItem('wishlist_v2');
-    return saved ? JSON.parse(saved) : [];
-  });
   const [banners, setBanners] = useState([]);
   const [offers, setOffers] = useState([]);
+  const [users, setUsers] = useState([]);
   const [staff, setStaff] = useState([]);
   const [coupons, setCoupons] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [myOrderIds, setMyOrderIds] = useState(() => {
-    const saved = localStorage.getItem('my_orders_v2');
-    return saved ? JSON.parse(saved) : [];
+  const [wishlist, setWishlist] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('wishlist') || '[]'); } catch { return []; }
   });
+  const [recentlyViewed, setRecentlyViewed] = useState([]);
+  const [myLocalOrders, setMyLocalOrders] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('myOrders') || '[]'); } catch { return []; }
+  });
+  const [loading, setLoading] = useState(true);
 
+  // ─── FETCH ALL DATA ───────────────────────────────────────────────────────
+  const fetchData = React.useCallback(async () => {
+    try {
+      const fetchWithFallback = async (table, select = '*', order = null) => {
+        let query = supabase.from(table).select(select);
+        if (order) query = query.order(order.column, { ascending: order.ascending });
+        const { data, error } = await query;
+        if (error) {
+          console.warn(`Fetch error for ${table}:`, error.message);
+          return [];
+        }
+        return data || [];
+      };
 
-  // Sync with Firestore on mount
-  useEffect(() => {
-    let activeListeners = 0;
-    const totalRequired = 8;
-    
-    const decrementLoading = () => {
-      activeListeners++;
-      if (activeListeners >= totalRequired) {
-        setLoading(false);
-      }
-    };
+      const [p, c, o, b, u] = await Promise.all([
+        fetchWithFallback('products'),
+        fetchWithFallback('categories'),
+        fetchWithFallback('orders', '*', { column: 'created_at', ascending: false }),
+        fetchWithFallback('banners'),
+        fetchWithFallback('profiles')
+      ]);
 
-    // Safety timeout: Never stay on loading more than 4 seconds
-    const timeout = setTimeout(() => setLoading(false), 4000);
-
-    const handleError = (error) => {
-        console.error("Firestore Listener Error:", error);
-        decrementLoading();
-    };
-
-    // Products
-    const qProducts = query(collection(db, "products"));
-    const unsubscribeProducts = onSnapshot(qProducts, (snapshot) => {
-      const dbProds = snapshot.docs.map(doc => ({ ...doc.data(), firestoreId: doc.id }));
-      
-      // Merge: Take all from Firestore, and add defaults that don't exist in Firestore by name
       const merged = [
-        ...dbProds,
-        ...defaultProducts.filter(dp => !dbProds.some(p => p.name === dp.name))
+        ...p,
+        ...defaultProducts.filter(dp => !p.some(pdb => pdb.name === dp.name))
       ];
-      
-      // Sort: Newest manually added at the top
-      setProducts(merged.sort((a, b) => (b.id || 0) - (a.id || 0)));
-      decrementLoading();
-    }, handleError);
+      setProducts(merged);
 
-    // Categories
-    const qCategories = query(collection(db, "categories"));
-    const unsubscribeCategories = onSnapshot(qCategories, (snapshot) => {
-      const dbCats = snapshot.docs.map(doc => doc.data().name).filter(Boolean);
-      const defaults = ["Grocery", "Fruits", "Vegetables", "Drinks", "Snacks", "Dairy", "Bakery", "Personal Care", "Household"];
-      // Merge unique categories
-      setCategories([...new Set([...dbCats, ...defaults])]);
-      decrementLoading();
-    }, handleError);
-
-    // Orders
-    const qOrders = query(collection(db, "orders"), orderBy("date", "desc"));
-    const unsubscribeOrders = onSnapshot(qOrders, (snapshot) => {
-      const ords = snapshot.docs.map(doc => ({ ...doc.data(), firestoreId: doc.id }));
-      setOrders(ords);
-      decrementLoading();
-    }, handleError);
-
-    // Users
-    const qUsers = query(collection(db, "users"), orderBy("joined", "desc"));
-    const unsubscribeUsers = onSnapshot(qUsers, (snapshot) => {
-      const u = snapshot.docs.map(doc => ({ ...doc.data(), firestoreId: doc.id }));
+      const cats = c.length > 0 ? c : [
+        { id: 1, name: 'Grocery' }, { id: 2, name: 'Drinks' },
+        { id: 3, name: 'Snacks' }, { id: 4, name: 'Fruits' },
+        { id: 5, name: 'Vegetables' }, { id: 6, name: 'Dairy' },
+        { id: 7, name: 'Bakery' }, { id: 8, name: 'Personal Care' }
+      ];
+      setCategories(cats);
+      setOrders(o);
+      setBanners(b.length > 0 ? b : [
+        { id: 1, title: 'Fresh Groceries Delivered', image: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=1200&q=80' }
+      ]);
+      setOffers([{ id: 1, title: "Snack O'Clock!", desc: 'Get flat 20% off on all snacks', category: 'Snacks', color: 'orange' }]);
       setUsers(u);
-      decrementLoading();
-    }, handleError);
-
-    // Banners
-    const qBanners = query(collection(db, "banners"));
-    const unsubscribeBanners = onSnapshot(qBanners, (snapshot) => {
-      const dbBanners = snapshot.docs.map(doc => ({ ...doc.data(), firestoreId: doc.id }));
-      const defaultBanners = [{ image: 'https://images.unsplash.com/photo-1542838132-92c53300491e', title: 'Premium Groceries' }];
-      setBanners([...dbBanners, ...defaultBanners.filter(db => !dbBanners.some(b => b.title === db.title))]);
-      decrementLoading();
-    }, handleError);
-
-    // Offers
-    const qOffers = query(collection(db, "offers"));
-    const unsubscribeOffers = onSnapshot(qOffers, (snapshot) => {
-      const dbOffers = snapshot.docs.map(doc => ({ ...doc.data(), firestoreId: doc.id }));
-      const defaultOffers = [{ title: "Snack O'Clock!", desc: "Get flat 20% off", category: 'Snacks' }];
-      setOffers([...dbOffers, ...defaultOffers.filter(doff => !dbOffers.some(o => o.title === doff.title))]);
-      decrementLoading();
-    }, handleError);
-
-    // Staff
-    const qStaff = query(collection(db, "staff"));
-    const unsubscribeStaff = onSnapshot(qStaff, (snapshot) => {
-      const s = snapshot.docs.map(doc => ({ ...doc.data(), firestoreId: doc.id }));
-      setStaff(s);
-      decrementLoading();
-    }, handleError);
-
-    // Coupons
-    const qCoupons = query(collection(db, "coupons"));
-    const unsubscribeCoupons = onSnapshot(qCoupons, (snapshot) => {
-      const c = snapshot.docs.map(doc => ({ ...doc.data(), firestoreId: doc.id }));
-      setCoupons(c);
-      decrementLoading();
-    }, handleError);
-
-    return () => {
-      clearTimeout(timeout);
-      unsubscribeProducts();
-      unsubscribeCategories();
-      unsubscribeOrders();
-      unsubscribeUsers();
-      unsubscribeBanners();
-      unsubscribeOffers();
-      unsubscribeStaff();
-      unsubscribeCoupons();
-    };
+      setStaff(u.filter(usr => usr.role === 'admin' || usr.role === 'staff'));
+    } catch (e) {
+      console.error('DataContext fetchData fatal error:', e);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-
   useEffect(() => {
-    localStorage.setItem('wishlist_v2', JSON.stringify(wishlist));
-  }, [wishlist]);
+    fetchData();
 
-  useEffect(() => {
-    localStorage.setItem('my_orders_v2', JSON.stringify(myOrderIds));
-  }, [myOrderIds]);
+    // Subscribe to specific tables to avoid infinite loops and redundant fetches
+    const channel = supabase.channel('realtime-updates')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, fetchData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, fetchData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, fetchData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'banners' }, fetchData)
+      .subscribe();
 
-  // Product Methods
-  const addProduct = async (product) => {
-    try {
-      const docRef = await addDoc(collection(db, "products"), { ...product, id: Date.now() });
-      return docRef;
-    } catch (error) {
-      console.error("Error adding product: ", error);
-      throw error;
-    }
-  };
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchData]);
 
-  const bulkAddProducts = async (productList) => {
-    try {
-      for (const product of productList) {
-        await addDoc(collection(db, "products"), { ...product, id: Date.now() + Math.random() });
-      }
-    } catch (error) {
-      console.error("Error bulk adding products: ", error);
-    }
-  };
-
-
-  const updateProduct = async (updatedProduct) => {
-    try {
-      const productRef = doc(db, "products", updatedProduct.firestoreId);
-      await updateDoc(productRef, updatedProduct);
-    } catch (error) {
-      console.error("Error updating product: ", error);
-    }
-  };
-
-  const deleteProduct = async (firestoreId) => {
-    try {
-      await deleteDoc(doc(db, "products", firestoreId));
-    } catch (error) {
-      console.error("Error deleting product: ", error);
-    }
-  };
-
-  // Staff Methods
-  const addStaff = async (member) => {
-    try {
-      await addDoc(collection(db, "staff"), { ...member, id: Date.now(), status: 'Active' });
-    } catch (error) {
-      console.error("Error adding staff:", error);
-    }
-  };
-
-  const deleteStaff = async (id) => {
-    try {
-      await deleteDoc(doc(db, "staff", id));
-    } catch (error) {
-      console.error("Error deleting staff:", error);
-    }
-  };
-
-  const updateStaffStatus = async (id, status) => {
-    try {
-      await updateDoc(doc(db, "staff", id), { status });
-    } catch (error) {
-      console.error("Error updating staff status:", error);
-    }
-  };
-
-  // Coupon Methods
-  const addCoupon = async (coupon) => {
-    try {
-      await addDoc(collection(db, "coupons"), { ...coupon, id: Date.now(), active: true });
-    } catch (error) {
-      console.error("Error adding coupon:", error);
-    }
-  };
-
-  const deleteCoupon = async (id) => {
-    try {
-      await deleteDoc(doc(db, "coupons", id));
-    } catch (error) {
-      console.error("Error deleting coupon:", error);
-    }
-  };
-
-  // Category Methods
-  const addCategory = async (categoryName) => {
-    try {
-      if (!categories.includes(categoryName)) {
-        await addDoc(collection(db, "categories"), { name: categoryName });
-      }
-    } catch (error) {
-      console.error("Error adding category: ", error);
-    }
-  };
-
-  const deleteCategory = async (categoryName) => {
-    const q = query(collection(db, "categories"));
-    const snapshot = await getDocs(q);
-    snapshot.forEach(async (document) => {
-      if (document.data().name === categoryName) {
-        await deleteDoc(doc(db, "categories", document.id));
-      }
-    });
-  };
-
-  // Order Methods
-  const addOrder = async (order) => {
-    // We'll wrap the Firestore call in a Promise with a timeout
-    const firestorePromise = addDoc(collection(db, "orders"), { 
-      ...order, 
-      date: new Date().toISOString(),
-      timestamp: new Date() // Store as actual date object too
-    });
-
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Timeout")), 7000)
-    );
-
-    try {
-      await Promise.race([firestorePromise, timeoutPromise]);
-      setMyOrderIds(prev => [...prev, order.id]);
-    } catch (error) {
-      console.warn("Order save to Firebase failed or timed out, saving locally only:", error);
-      // We still update local state so the user sees it in their dashboard
-      setMyOrderIds(prev => [...prev, order.id]);
-      // We don't throw here so the UI can proceed
-    }
-  };
-  
-  const updateOrderStatus = async (orderId, status) => {
-    try {
-      const orderRef = doc(db, "orders", orderId);
-      await updateDoc(orderRef, { status });
-    } catch (error) {
-      console.error("Error updating order status: ", error);
-    }
-  };
-
-  // Wishlist Methods
+  // ─── WISHLIST ─────────────────────────────────────────────────────────────
   const toggleWishlist = (productId) => {
-    if (wishlist.includes(productId)) {
-      setWishlist(wishlist.filter(id => id !== productId));
-    } else {
-      setWishlist([...wishlist, productId]);
-    }
+    setWishlist(prev => {
+      const updated = prev.includes(productId)
+        ? prev.filter(id => id !== productId)
+        : [...prev, productId];
+      localStorage.setItem('wishlist', JSON.stringify(updated));
+      return updated;
+    });
   };
 
-  // Banner & Offer Methods
-  const addBanner = async (banner) => {
-    try {
-      await addDoc(collection(db, "banners"), banner);
-    } catch (error) {
-       console.error("Error adding banner:", error);
+  // ─── RECENTLY VIEWED ─────────────────────────────────────────────────────
+  const addToRecentlyViewed = (product) => {
+    setRecentlyViewed(prev => {
+      const filtered = prev.filter(p => p.id !== product.id);
+      return [product, ...filtered].slice(0, 10);
+    });
+  };
+
+  // ─── PRODUCTS ─────────────────────────────────────────────────────────────
+  const addProduct = async (productData) => {
+    const { error } = await supabase.from('products').insert([productData]);
+    if (!error) fetchData();
+    return { error };
+  };
+
+  const updateProduct = async (productData) => {
+    const { id, ...data } = productData;
+    const { error } = await supabase.from('products').update(data).eq('id', id);
+    if (!error) fetchData();
+    return { error };
+  };
+
+  const deleteProduct = async (id) => {
+    await supabase.from('products').delete().eq('id', id);
+    fetchData();
+  };
+
+  const bulkAddProducts = async (productsArray) => {
+    const { error } = await supabase.from('products').insert(productsArray);
+    if (!error) fetchData();
+    return { error };
+  };
+
+  // ─── CATEGORIES ───────────────────────────────────────────────────────────
+  const addCategory = async (name) => {
+    const { error } = await supabase.from('categories').insert([{ name }]);
+    if (!error) fetchData();
+    return { error };
+  };
+
+  const deleteCategory = async (id) => {
+    await supabase.from('categories').delete().eq('id', id);
+    fetchData();
+  };
+
+  // ─── ORDERS ───────────────────────────────────────────────────────────────
+  const addOrder = async (orderData) => {
+    const { data, error } = await supabase.from('orders').insert([orderData]).select();
+    if (!error) {
+      const newOrder = data[0];
+      setMyLocalOrders(prev => {
+        const updated = [newOrder, ...prev];
+        localStorage.setItem('myOrders', JSON.stringify(updated));
+        return updated;
+      });
+      fetchData();
     }
+    return { data, error };
+  };
+
+  const updateOrderStatus = async (id, status) => {
+    await supabase.from('orders').update({ status }).eq('id', id);
+    fetchData();
+  };
+
+  const deleteOrder = async (id) => {
+    await supabase.from('orders').delete().eq('id', id);
+    fetchData();
+  };
+
+  // ─── BANNERS & OFFERS ─────────────────────────────────────────────────────
+  const addBanner = async (bannerData) => {
+    const { error } = await supabase.from('banners').insert([bannerData]);
+    if (!error) fetchData();
+    return { error };
   };
 
   const deleteBanner = async (id) => {
-    try {
-      await deleteDoc(doc(db, "banners", id));
-    } catch (error) {
-      console.error("Error deleting banner:", error);
-    }
+    await supabase.from('banners').delete().eq('id', id);
+    fetchData();
   };
 
-  const addOffer = async (offer) => {
-    try {
-      await addDoc(collection(db, "offers"), offer);
-    } catch (error) {
-      console.error("Error adding offer:", error);
-    }
+  const addOffer = (offer) => setOffers(prev => [...prev, { ...offer, id: Date.now() }]);
+  const deleteOffer = (id) => setOffers(prev => prev.filter(o => o.id !== id));
+
+  // ─── COUPONS ──────────────────────────────────────────────────────────────
+  const addCoupon = (coupon) => setCoupons(prev => [...prev, { ...coupon, id: Date.now() }]);
+  const deleteCoupon = (id) => setCoupons(prev => prev.filter(c => c.id !== id));
+
+  // ─── STAFF ────────────────────────────────────────────────────────────────
+  const addStaff = async (staffData) => {
+    const { error } = await supabase.from('profiles').update({ role: 'staff' }).eq('id', staffData.id);
+    if (!error) fetchData();
+    return { error };
   };
 
-  const deleteOffer = async (id) => {
-    try {
-      await deleteDoc(doc(db, "offers", id));
-    } catch (error) {
-      console.error("Error deleting offer:", error);
-    }
+  const deleteStaff = async (id) => {
+    await supabase.from('profiles').update({ role: 'user' }).eq('id', id);
+    fetchData();
+  };
+
+  const updateStaffStatus = async (id, status) => {
+    await supabase.from('profiles').update({ status }).eq('id', id);
+    fetchData();
   };
 
   return (
     <DataContext.Provider value={{
-      products, addProduct, bulkAddProducts, updateProduct, deleteProduct,
-      categories, addCategory, deleteCategory,
-      orders, addOrder, updateOrderStatus,
-      wishlist, toggleWishlist, loading,
-      banners, addBanner, deleteBanner,
-      offers, addOffer, deleteOffer,
-      staff, addStaff, deleteStaff, updateStaffStatus,
-      coupons, addCoupon, deleteCoupon,
-      users, myOrderIds
+      // State
+      products, categories, orders, banners, offers, users, staff,
+      coupons, wishlist, recentlyViewed, myLocalOrders, loading,
+      // Actions
+      fetchData,
+      toggleWishlist, addToRecentlyViewed,
+      addProduct, updateProduct, deleteProduct, bulkAddProducts,
+      addCategory, deleteCategory,
+      addOrder, updateOrderStatus, deleteOrder,
+      addBanner, deleteBanner, addOffer, deleteOffer,
+      addCoupon, deleteCoupon,
+      addStaff, deleteStaff, updateStaffStatus,
     }}>
       {children}
     </DataContext.Provider>

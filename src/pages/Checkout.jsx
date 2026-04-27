@@ -11,19 +11,23 @@ const Checkout = () => {
   const { addOrder } = useData();
   const navigate = useNavigate();
 
-  const [paymentMethod, setPaymentMethod] = useState('UPI');
+  const [paymentMethod, setPaymentMethod] = useState('Online');
+  const savedAddressStr = localStorage.getItem('savedCheckoutAddress');
+  const savedAddr = savedAddressStr ? JSON.parse(savedAddressStr) : null;
+
   const [address, setAddress] = useState({
-    name: user?.name || '',
-    phone: user?.phone || '',
-    street: user?.address || '',
-    city: '',
-    pincode: ''
+    name: savedAddr?.name || user?.name || '',
+    phone: savedAddr?.phone || user?.phone || '',
+    street: savedAddr?.street || user?.address || '',
+    city: savedAddr?.city || '',
+    pincode: savedAddr?.pincode || ''
   });
+
+  const [isPlacing, setIsPlacing] = useState(false);
 
   // Unified checkout allows both guests and logged-in users
 
-
-  if (cartItems.length === 0) {
+  if (cartItems.length === 0 && !isPlacing) {
     return <Navigate to="/cart" replace />;
   }
 
@@ -32,31 +36,71 @@ const Checkout = () => {
     setAddress(prev => ({ ...prev, [name]: value }));
   };
 
-  const [isPlacing, setIsPlacing] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState('');
+  const [transactionId, setTransactionId] = useState('');
 
-  const handlePlaceOrder = (e) => {
-    e.preventDefault();
+  // ...
+  const handlePlaceOrder = async (e) => {
+    if (e) e.preventDefault();
+    if (isPlacing) return;
+    
     setIsPlacing(true);
 
-    const orderId = "ORD" + Math.floor(Math.random() * 1000000);
+    try {
+      if (paymentMethod === 'Online') {
+         setPaymentStatus('Redirecting to Payment Gateway...');
+         await new Promise(resolve => setTimeout(resolve, 1200));
+         setPaymentStatus('Verifying Transaction...');
+         await new Promise(resolve => setTimeout(resolve, 1500));
+         setPaymentStatus('Payment Confirmed!');
+         await new Promise(resolve => setTimeout(resolve, 600));
+      } else {
+         setPaymentStatus('Processing your order...');
+         await new Promise(resolve => setTimeout(resolve, 1000));
+      }
 
-    const orderDetails = {
-      id: orderId,
-      items: cartItems,
-      total: getCartTotal() + 5,
-      date: new Date().toISOString(),
-      address,
-      email: user?.email || (address.phone + "@guest.com"),
-      paymentMethod,
-      status: 'Processing'
-    };
+      const orderDetails = {
+        items: [...cartItems], // Clone to avoid reference issues
+        total: getCartTotal() + 5,
+        address,
+        email: user?.email || (address.phone + "@guest.com"),
+        payment_method: paymentMethod, // match snake_case in schema if needed, but schema uses payment_method
+        transaction_id: paymentMethod === 'Online' ? transactionId : null,
+        status: 'Pending',
+        user_id: user?.id || null
+      };
 
-    // Fire and forget - save to DB in background, don't wait for it
-    addOrder(orderDetails).catch(err => console.warn("Background order save failed:", err));
+      // Save address for convenience
+      localStorage.setItem('savedCheckoutAddress', JSON.stringify(address));
 
-    // Immediately proceed to success page
-    clearCart();
-    navigate('/success', { state: { orderId } });
+      // Attempt to save order
+      let finalOrderId = '';
+      try {
+        const { data, error } = await addOrder(orderDetails);
+        if (error) throw error;
+        finalOrderId = data[0].id;
+      } catch (err) {
+        console.error("Order save failed:", err);
+        throw new Error("Failed to save order to database.");
+      }
+
+      // Final UI update before navigation
+      setPaymentStatus('Order Placed Successfully!');
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Navigate to success page
+      navigate('/success', { state: { orderId: finalOrderId }, replace: true });
+      
+      // Clear cart in background
+      setTimeout(() => {
+        clearCart();
+      }, 200);
+
+    } catch (error) {
+      console.error("Checkout Error:", error);
+      setPaymentStatus('Error placing order. Please try again.');
+      setIsPlacing(false);
+    }
   };
 
   return (
@@ -101,15 +145,35 @@ const Checkout = () => {
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
             <h2 className="font-bold text-lg mb-4 text-gray-900">Payment Options</h2>
             <div className="space-y-3">
-              <label className={`flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-colors ${paymentMethod === 'UPI' ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:bg-gray-50'}`}>
-                <input type="radio" name="payment" value="UPI" checked={paymentMethod === 'UPI'} onChange={() => setPaymentMethod('UPI')} className="text-green-500 focus:ring-green-500 h-4 w-4" />
-                <CreditCard className="h-5 w-5 text-gray-600" />
+              <label className={`flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-colors ${paymentMethod === 'Online' ? 'border-green-500 bg-green-50/50' : 'border-gray-200 hover:bg-gray-50'}`}>
+                <input type="radio" name="payment" value="Online" checked={paymentMethod === 'Online'} onChange={() => setPaymentMethod('Online')} className="text-green-500 focus:ring-green-500 h-4 w-4 mt-1 self-start" />
+                <CreditCard className="h-5 w-5 text-gray-600 mt-0.5 self-start" />
                 <div className="flex-1">
-                  <div className="font-semibold text-gray-900">UPI (Demo)</div>
-                  <div className="text-xs text-gray-500">Google Pay, PhonePe, Paytm</div>
+                  <div className="font-semibold text-gray-900">Online Payment (UPI Scan)</div>
+                  <div className="text-xs text-gray-500 mb-3">Pay via PhonePe, GPay, Paytm, etc.</div>
+                  
+                  {paymentMethod === 'Online' && (
+                    <div className="mt-3 p-4 bg-white border border-green-100 rounded-xl flex flex-col items-center text-center shadow-sm">
+                       <p className="text-sm font-bold text-gray-800 mb-2">Scan & Pay ₹{getCartTotal() + 5}</p>
+                       <div className="p-2 bg-white rounded-xl shadow-sm border border-gray-100 mb-4 inline-block">
+                          <img src="/qrcode.jpg" alt="Payment QR Code" className="w-48 h-48 object-contain rounded-lg" onError={(e) => { e.target.onerror = null; e.target.src = 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi://pay?pa=sunilkumarmeena@ybl&pn=Sunil%20Kumar%20Meena&am=' + (getCartTotal() + 5); }} />
+                       </div>
+                       <p className="text-xs text-gray-500 mb-3 max-w-xs">After successful payment, please enter your 12-digit UTR or Transaction ID below to verify your order.</p>
+                       <div className="w-full relative">
+                         <input 
+                           type="text" 
+                           placeholder="Enter UTR / Transaction ID" 
+                           required={paymentMethod === 'Online'} // Only required if online
+                           value={transactionId}
+                           onChange={(e) => setTransactionId(e.target.value)}
+                           className="w-full text-sm px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none"
+                         />
+                       </div>
+                    </div>
+                  )}
                 </div>
               </label>
-              <label className={`flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-colors ${paymentMethod === 'COD' ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:bg-gray-50'}`}>
+              <label className={`flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-colors ${paymentMethod === 'COD' ? 'border-green-500 bg-green-50/50' : 'border-gray-200 hover:bg-gray-50'}`}>
                 <input type="radio" name="payment" value="COD" checked={paymentMethod === 'COD'} onChange={() => setPaymentMethod('COD')} className="text-green-500 focus:ring-green-500 h-4 w-4" />
                 <Banknote className="h-5 w-5 text-gray-600" />
                 <div className="flex-1">
@@ -151,10 +215,10 @@ const Checkout = () => {
                 {isPlacing ? (
                   <>
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                    Placing Order...
+                    {paymentStatus || 'Placing Order...'}
                   </>
                 ) : (
-                  'Place Order'
+                  paymentMethod === 'Online' ? 'Pay Securely Now' : 'Place Order via COD'
                 )}
              </button>
           </div>

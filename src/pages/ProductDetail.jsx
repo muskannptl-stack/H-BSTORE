@@ -1,18 +1,38 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { useCart } from '../context/CartContext';
-import { ChevronRight, Shield, Truck, Plus, Minus, Heart } from 'lucide-react';
+import { ChevronRight, Shield, Truck, Plus, Minus, Heart, Share2 } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
 
 const ProductDetail = () => {
   const { id } = useParams();
-  const { products, wishlist, toggleWishlist } = useData();
+  const { products, wishlist, toggleWishlist, addToRecentlyViewed } = useData();
   const { cartItems, addToCart, updateQuantity } = useCart();
   const navigate = useNavigate();
   
-  const product = products.find(p => p.id === parseInt(id));
+  const product = products.find(p => p.id === id);
   const cartItem = cartItems.find(item => item.id === product?.id);
+
+  const handleShare = () => {
+    const url = window.location.href;
+    if (navigator.share) {
+      navigator.share({
+        title: product?.name,
+        text: product?.description,
+        url: url,
+      }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(url);
+      alert('Link copied to clipboard!');
+    }
+  };
+
+  useEffect(() => {
+    if (product) {
+      addToRecentlyViewed(product.id);
+    }
+  }, [product, addToRecentlyViewed]);
 
   if (!product) {
     return (
@@ -52,12 +72,21 @@ const ProductDetail = () => {
               <div className="text-sm text-green-600 font-semibold mb-2">{product.category}</div>
               <div className="flex justify-between items-start mb-4">
                 <h1 className="text-3xl font-bold text-gray-900 pr-4">{product.name}</h1>
-                <button 
-                  onClick={() => toggleWishlist(product.id)}
-                  className="p-3 bg-gray-50 hover:bg-red-50 rounded-full transition-colors group"
-                >
-                  <Heart className={`h-6 w-6 ${wishlist.includes(product.id) ? 'fill-red-500 text-red-500' : 'text-gray-400 group-hover:text-red-500'}`} />
-                </button>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={handleShare}
+                    className="p-3 bg-gray-50 hover:bg-blue-50 rounded-full transition-colors group"
+                    title="Share Product"
+                  >
+                    <Share2 className="h-6 w-6 text-gray-400 group-hover:text-blue-500 transition-colors" />
+                  </button>
+                  <button 
+                    onClick={() => toggleWishlist(product.id)}
+                    className="p-3 bg-gray-50 hover:bg-red-50 rounded-full transition-colors group"
+                  >
+                    <Heart className={`h-6 w-6 ${wishlist.includes(product.id) ? 'fill-red-500 text-red-500' : 'text-gray-400 group-hover:text-red-500'}`} />
+                  </button>
+                </div>
               </div>
               <div className="flex items-center gap-4">
                 <span className="text-3xl font-extrabold text-gray-900">₹{product.price}</span>
@@ -71,9 +100,9 @@ const ProductDetail = () => {
                   <div>
                     <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Select Size</h3>
                     <div className="flex flex-wrap gap-2">
-                       {product.sizes.split(',').map(s => (
+                       {(Array.isArray(product.sizes) ? product.sizes : product.sizes.split(',')).map(s => (
                          <button key={s} className="px-4 py-2 border border-gray-200 rounded-xl text-sm font-bold hover:border-gray-900 hover:bg-gray-900 hover:text-white transition-all">
-                            {s.trim()}
+                            {String(s).trim()}
                          </button>
                        ))}
                     </div>
@@ -84,10 +113,10 @@ const ProductDetail = () => {
                   <div>
                     <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Available Colors</h3>
                     <div className="flex flex-wrap gap-2">
-                       {product.colors.split(',').map(c => (
+                       {(Array.isArray(product.colors) ? product.colors : product.colors.split(',')).map(c => (
                          <div key={c} className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-xl border border-gray-100 cursor-pointer hover:border-gray-900 transition-all">
-                            <span className="w-4 h-4 rounded-full border border-gray-200" style={{ backgroundColor: c.trim().toLowerCase() }}></span>
-                            <span className="text-xs font-bold text-gray-700">{c.trim()}</span>
+                            <span className="w-4 h-4 rounded-full border border-gray-200" style={{ backgroundColor: String(c).trim().toLowerCase() }}></span>
+                            <span className="text-xs font-bold text-gray-700">{String(c).trim()}</span>
                          </div>
                        ))}
                     </div>

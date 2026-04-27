@@ -1,8 +1,9 @@
 import React, { useState, useRef } from 'react';
-import { Megaphone, ImagePlus, Globe, Search, Save, Trash2, Plus, Upload, X } from 'lucide-react';
+import { Megaphone, ImagePlus, Trash2, Upload } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useData } from '../../context/DataContext';
 import { useToast } from '../../context/ToastContext';
+import { supabase } from '../../supabase/config';
 
 const SeoBanners = () => {
   const { banners, addBanner, deleteBanner, offers, addOffer, deleteOffer } = useData();
@@ -13,16 +14,35 @@ const SeoBanners = () => {
   const [newOffer, setNewOffer] = useState({ title: '', desc: '', category: 'Grocery', color: 'orange' });
   const [uploading, setUploading] = useState(false);
 
-  const handleFileSelect = (e) => {
+  const handleFileSelect = async (e) => {
     const file = e.target.files[0];
     if (file) {
       setUploading(true);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setNewBanner({ ...newBanner, image: reader.result });
+      try {
+        addToast("Uploading banner to Supabase storage...", "info");
+        
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}.${fileExt}`;
+        const filePath = `banners/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('banners')
+          .upload(filePath, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('banners')
+          .getPublicUrl(filePath);
+
+        setNewBanner({ ...newBanner, image: publicUrl });
+        addToast("Banner image uploaded successfully!", "success");
+      } catch (error) {
+        console.error("Upload failed", error);
+        addToast("Failed to upload image. Ensure 'banners' bucket exists.", "error");
+      } finally {
         setUploading(false);
-      };
-      reader.readAsDataURL(file);
+      }
     }
   };
 
@@ -121,7 +141,7 @@ const SeoBanners = () => {
                              <p className="text-sm font-black text-gray-900">{b.title}</p>
                              <p className="text-[10px] text-gray-400 font-bold line-clamp-1">{b.desc}</p>
                           </div>
-                          <button onClick={() => deleteBanner(b.firestoreId)} className="p-3 text-gray-300 hover:text-red-500 transition-colors">
+                          <button onClick={() => deleteBanner(b.id)} className="p-3 text-gray-300 hover:text-red-500 transition-colors">
                              <Trash2 className="h-5 w-5" />
                           </button>
                        </motion.div>
@@ -170,13 +190,18 @@ const SeoBanners = () => {
                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-6">Active Announcements</p>
                <div className="space-y-4">
                   {offers.map(o => (
-                    <div key={o.firestoreId} className="flex items-center gap-4 p-5 bg-gray-50 border border-gray-100 rounded-[2rem] group transition-all">
-                       <div className={`w-3 h-12 rounded-full bg-${o.color}-500 shadow-lg shadow-${o.color}-100`}></div>
+                    <div key={o.id} className="flex items-center gap-4 p-5 bg-gray-50 border border-gray-100 rounded-[2rem] group transition-all">
+                       <div className={`w-3 h-12 rounded-full shadow-lg ${
+                         o.color === 'rose' ? 'bg-rose-500 shadow-rose-100' :
+                         o.color === 'emerald' ? 'bg-emerald-500 shadow-emerald-100' :
+                         o.color === 'blue' ? 'bg-blue-500 shadow-blue-100' :
+                         'bg-orange-500 shadow-orange-100'
+                       }`}></div>
                        <div className="flex-1">
                           <p className="text-sm font-black text-gray-900 uppercase tracking-wider">{o.title}</p>
                           <p className="text-xs text-gray-400 font-bold">{o.desc}</p>
                        </div>
-                       <button onClick={() => deleteOffer(o.firestoreId)} className="p-3 text-gray-300 hover:text-red-500 transition-colors">
+                       <button onClick={() => deleteOffer(o.id)} className="p-3 text-gray-300 hover:text-red-500 transition-colors">
                           <Trash2 className="h-4 w-4" />
                        </button>
                     </div>

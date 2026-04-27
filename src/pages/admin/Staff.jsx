@@ -46,7 +46,7 @@ const Staff = () => {
          <AnimatePresence>
             {staff.map((member, i) => (
               <motion.div 
-                key={member.firestoreId}
+                key={member.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.9 }}
@@ -88,13 +88,13 @@ const Staff = () => {
 
                  <div className="mt-8 pt-4 border-t border-gray-50 flex justify-between items-center opacity-0 group-hover:opacity-100 transition-opacity">
                     <button 
-                      onClick={() => updateStaffStatus(member.firestoreId, member.status === 'Active' ? 'Suspended' : 'Active')}
+                      onClick={() => updateStaffStatus(member.id, member.status === 'Active' ? 'Suspended' : 'Active')}
                       className="text-gray-400 hover:text-blue-500 font-bold text-xs flex items-center gap-1.5 transition-colors"
                     >
                        <Key className="h-3.5 w-3.5" /> {member.status === 'Active' ? 'Suspend' : 'Activate'}
                     </button>
                     <button 
-                      onClick={() => deleteStaff(member.firestoreId)}
+                      onClick={() => deleteStaff(member.id)}
                       className="text-gray-400 hover:text-red-500 font-bold text-xs flex items-center gap-1.5 transition-colors"
                     >
                        <Trash2 className="h-3.5 w-3.5" /> Remove

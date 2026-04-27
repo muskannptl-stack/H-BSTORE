@@ -97,7 +97,7 @@ const Users = () => {
                             </div>
                             <div>
                                <p className="font-black text-gray-900">{u.name || 'Anonymous'}</p>
-                               <span className="text-[10px] font-bold px-2 py-0.5 bg-gray-100 text-gray-500 rounded-md uppercase">ID: {u.firestoreId?.slice(-6).toUpperCase()}</span>
+                               <span className="text-[10px] font-bold px-2 py-0.5 bg-gray-100 text-gray-500 rounded-md uppercase">ID: {u.id?.slice(-6).toUpperCase()}</span>
                             </div>
                          </div>
                       </td>
