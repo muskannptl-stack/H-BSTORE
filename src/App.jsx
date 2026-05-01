@@ -46,6 +46,7 @@ const SeoBanners = lazy(() => import('./pages/admin/SeoBanners'));
 const BulkUpload = lazy(() => import('./pages/admin/BulkUpload'));
 const Staff = lazy(() => import('./pages/admin/Staff'));
 const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'));
+const AdminSignup = lazy(() => import('./pages/admin/AdminSignup'));
 
 const AnimatedRoutes = () => {
 
@@ -80,6 +81,7 @@ const AnimatedRoutes = () => {
 
         {/* Admin Routes */}
         <Route path="/admin/login" element={<Suspense fallback={<PageLoader />}><PageTransition><AdminLogin /></PageTransition></Suspense>} />
+        <Route path="/admin/signup" element={<Suspense fallback={<PageLoader />}><PageTransition><AdminSignup /></PageTransition></Suspense>} />
 
         <Route path="/admin" element={<Suspense fallback={<PageLoader />}><AdminLayout /></Suspense>}>
           <Route index element={<Suspense fallback={<PageLoader />}><PageTransition><AdminDashboard /></PageTransition></Suspense>} />
