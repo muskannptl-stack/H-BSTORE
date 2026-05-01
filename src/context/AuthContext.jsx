@@ -3,15 +3,25 @@ import { supabase } from '../supabase/config';
 
 const AuthContext = createContext();
 
-const fetchProfile = async (userId) => {
+const fetchProfile = async (sessionUser) => {
+  // MASTER ADMIN BYPASS: Always grant admin role to master email
+  if (sessionUser?.email === 'muskannptl@gmail.com') {
+    return { role: 'admin', full_name: 'Master Admin' };
+  }
+
   try {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('profiles')
       .select('*')
-      .eq('id', userId)
+      .eq('id', sessionUser.id)
       .single();
+    
+    if (error) {
+      console.warn("Profile fetch error:", error);
+      return {};
+    }
     return data || {};
-  } catch {
+  } catch (err) {
     return {};
   }
 };
@@ -29,7 +39,7 @@ export const AuthProvider = ({ children }) => {
         return;
       }
       
-      const profile = await fetchProfile(sessionUser.id);
+      const profile = await fetchProfile(sessionUser);
       // Merge Auth User data with Database Profile data
       setUser({ ...sessionUser, ...profile });
       setLoading(false);
