@@ -162,6 +162,32 @@ const AdminLogin = () => {
               </div>
             </div>
 
+            <div className="flex items-center justify-between px-1">
+              <button 
+                type="button"
+                onClick={async () => {
+                  if (!email) {
+                    addToast('Please enter your email first to reset password', 'error');
+                    return;
+                  }
+                  const { error } = await supabase.auth.resetPasswordForEmail(email);
+                  if (error) addToast(error.message, 'error');
+                  else addToast('Password reset link sent to your email!', 'success');
+                }}
+                className="text-xs font-semibold text-blue-400 hover:text-blue-300 transition-colors"
+              >
+                Forgot Password?
+              </button>
+              
+              <button 
+                type="button"
+                onClick={() => navigate('/admin/signup')}
+                className="text-xs font-semibold text-gray-400 hover:text-white transition-colors"
+              >
+                Create Account
+              </button>
+            </div>
+
             <button
                type="submit"
                disabled={loading}
