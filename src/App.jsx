@@ -45,6 +45,8 @@ const Coupons = lazy(() => import('./pages/admin/Coupons'));
 const SeoBanners = lazy(() => import('./pages/admin/SeoBanners'));
 const BulkUpload = lazy(() => import('./pages/admin/BulkUpload'));
 const Staff = lazy(() => import('./pages/admin/Staff'));
+const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'));
+
 const AnimatedRoutes = () => {
 
   const location = useLocation();
@@ -77,7 +79,8 @@ const AnimatedRoutes = () => {
         </Route>
 
         {/* Admin Routes */}
-        <Route path="/admin/login" element={<Suspense fallback={<PageLoader />}><PageTransition><Auth /></PageTransition></Suspense>} />
+        <Route path="/admin/login" element={<Suspense fallback={<PageLoader />}><PageTransition><AdminLogin /></PageTransition></Suspense>} />
+
         <Route path="/admin" element={<Suspense fallback={<PageLoader />}><AdminLayout /></Suspense>}>
           <Route index element={<Suspense fallback={<PageLoader />}><PageTransition><AdminDashboard /></PageTransition></Suspense>} />
           <Route path="products" element={<Suspense fallback={<PageLoader />}><PageTransition><AdminProducts /></PageTransition></Suspense>} />
