@@ -15,7 +15,8 @@ const Products = () => {
   const [priceRange, setPriceRange] = useState('All');
   const [searchTerm, setSearchTerm] = useState(searchParam || '');
 
-  const categories = ['All', ...dynamicCategories];
+  const categoryNames = (dynamicCategories || []).map(c => typeof c === 'string' ? c : c?.name).filter(Boolean);
+  const categories = ['All', ...categoryNames];
   const priceRanges = [
     { label: 'All', min: 0, max: Infinity },
     { label: 'Under ₹50', min: 0, max: 50 },
